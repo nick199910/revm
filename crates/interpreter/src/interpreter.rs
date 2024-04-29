@@ -282,7 +282,10 @@ impl Interpreter {
                 shared_memory.set(out_offset, &self.return_data_buffer[..target_len]);
                 push!(self, U256::ZERO);
             }
-            InstructionResult::FatalExternalError => {
+            InstructionResult::FatalExternalError
+            | InstructionResult::ControlLeak
+            | InstructionResult::ArbitraryExternalCallAddressBounded(_, _, _)
+            | InstructionResult::AddressUnboundedStaticCall => {
                 panic!("Fatal external error in insert_call_outcome");
             }
             _ => {

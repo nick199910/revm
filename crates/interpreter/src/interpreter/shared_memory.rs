@@ -23,6 +23,7 @@ pub struct SharedMemory {
     last_checkpoint: usize,
     /// Memory limit. See [`CfgEnv`](revm_primitives::CfgEnv).
     #[cfg(feature = "memory_limit")]
+    #[serde(skip)]
     memory_limit: u64,
 }
 

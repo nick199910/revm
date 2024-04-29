@@ -2,7 +2,7 @@ use crate::Address;
 
 /// EIP-170: Contract code size limit
 /// By default limit is 0x6000 (~25kb)
-pub const MAX_CODE_SIZE: usize = 0x6000;
+pub const MAX_CODE_SIZE: usize = 800_000;
 
 /// Number of block hashes that EVM can access in the past
 pub const BLOCK_HASH_HISTORY: usize = 256;

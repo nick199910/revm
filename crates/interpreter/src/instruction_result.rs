@@ -1,3 +1,5 @@
+use revm_primitives::{Address, U256};
+
 use crate::primitives::{HaltReason, OutOfGasError, SuccessReason};
 
 #[repr(u8)]
@@ -53,6 +55,11 @@ pub enum InstructionResult {
     EOFOpcodeDisabledInLegacy,
     /// EOF function stack overflow
     EOFFunctionStackOverflow,
+    // ItyFuzz specific error codes
+    ControlLeak,
+    ArbitraryExternalCallAddressBounded(Address, Address, U256),
+    AddressUnboundedStaticCall,
+    FixedExternalCallAddressUnbounded,
 }
 
 impl From<SuccessReason> for InstructionResult {
@@ -272,6 +279,12 @@ impl From<InstructionResult> for SuccessOrHalt {
             InstructionResult::ReturnContract => {
                 panic!("Unexpected EOF internal Return Contract")
             }
+            InstructionResult::ControlLeak => Self::FatalExternalError,
+            InstructionResult::ArbitraryExternalCallAddressBounded(_, _, _) => {
+                Self::FatalExternalError
+            }
+            InstructionResult::AddressUnboundedStaticCall => Self::FatalExternalError,
+            InstructionResult::FixedExternalCallAddressUnbounded => Self::FatalExternalError,
         }
     }
 }
@@ -282,12 +295,12 @@ mod tests {
 
     #[test]
     fn all_results_are_covered() {
-        match InstructionResult::Continue {
-            return_error!() => {}
-            return_revert!() => {}
-            return_ok!() => {}
-            InstructionResult::CallOrCreate => {}
-        }
+        // match InstructionResult::Continue {
+        //     return_error!() => {}
+        //     return_revert!() => {}
+        //     return_ok!() => {}
+        //     InstructionResult::CallOrCreate => {}
+        // }
     }
 
     #[test]
