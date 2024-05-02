@@ -36,6 +36,14 @@ impl Default for Stack {
     }
 }
 
+impl Clone for Stack {
+    fn clone(&self) -> Self {
+        Self {
+            data: self.data.clone(),
+        }
+    }
+}
+
 impl Stack {
     /// Instantiate a new stack with the [default stack limit][STACK_LIMIT].
     #[inline]
@@ -423,5 +431,12 @@ mod tests {
             stack.push_slice(&b).unwrap();
             assert_eq!(stack.data, [U256::ZERO, U256::ZERO, U256::from(n)]);
         });
+    }
+
+    #[test]
+    fn test_clone() {
+        let mut stack1 = Stack::new();
+        stack1.push(U256::from(42)).unwrap();
+        let _ = stack1.clone();
     }
 }
