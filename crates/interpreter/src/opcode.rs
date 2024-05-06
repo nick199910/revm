@@ -34,7 +34,7 @@ impl<H: Host<u32>> InstructionTables<'_, H> {
     /// Creates a plain instruction table for the given spec.
     #[inline]
     pub const fn new_plain<SPEC: Spec>() -> Self {
-        Self::Plain(make_instruction_table::<H<u32>, SPEC>())
+        Self::Plain(make_instruction_table::<H, SPEC>())
     }
 }
 
