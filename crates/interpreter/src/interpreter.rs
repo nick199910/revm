@@ -442,9 +442,9 @@ mod tests {
             crate::opcode::make_instruction_table::<DummyHost, CancunSpec>();
         let _ = interp.run(EMPTY_SHARED_MEMORY, &table, &mut host);
 
-        let host: &mut dyn Host = &mut host as &mut dyn Host;
-        let table: InstructionTable<dyn Host> =
-            crate::opcode::make_instruction_table::<dyn Host, CancunSpec>();
+        let host: &mut dyn Host<u32> = &mut host as &mut dyn Host<u32>;
+        let table: InstructionTable<dyn Host<u32>> =
+            crate::opcode::make_instruction_table::<dyn Host<u32>, CancunSpec>();
         let _ = interp.run(EMPTY_SHARED_MEMORY, &table, host);
     }
 }

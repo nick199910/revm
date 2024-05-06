@@ -30,18 +30,15 @@ pub enum InstructionTables<'a, H> {
     Boxed(BoxedInstructionTable<'a, H>),
 }
 
-impl<T, H: Host<T>> InstructionTables<'_, T, H>
-where
-    T: std::cmp::PartialOrd,
-{
+impl<H: Host<u32>> InstructionTables<'_, H> {
     /// Creates a plain instruction table for the given spec.
     #[inline]
     pub const fn new_plain<SPEC: Spec>() -> Self {
-        Self::Plain(make_instruction_table::<T, H, SPEC>())
+        Self::Plain(make_instruction_table::<H<u32>, SPEC>())
     }
 }
 
-impl<'a, T, H: Host<T> + 'a> InstructionTables<'a, T, H> {
+impl<'a, H: Host<u32> + 'a> InstructionTables<'a, H> {
     /// Inserts a boxed instruction into the table with the specified index.
     ///
     /// This will convert the table into the [BoxedInstructionTable] variant if it is currently a
@@ -93,14 +90,14 @@ impl<'a, T, H: Host<T> + 'a> InstructionTables<'a, T, H> {
 
 /// Make instruction table.
 #[inline]
-pub const fn make_instruction_table<T, H: Host<T> + ?Sized, SPEC: Spec>() -> InstructionTable<H> {
+pub const fn make_instruction_table<H: Host<u32> + ?Sized, SPEC: Spec>() -> InstructionTable<H> {
     // Force const-eval of the table creation, making this function trivial.
     // TODO: Replace this with a `const {}` block once it is stable.
-    struct ConstTable<T, H: Host<T> + ?Sized, SPEC: Spec> {
+    struct ConstTable<H: Host<u32> + ?Sized, SPEC: Spec> {
         _host: core::marker::PhantomData<H>,
         _spec: core::marker::PhantomData<SPEC>,
     }
-    impl<T, H: Host<T> + ?Sized, SPEC: Spec> ConstTable<T, H, SPEC> {
+    impl<H: Host<u32> + ?Sized, SPEC: Spec> ConstTable<H, SPEC> {
         const NEW: InstructionTable<H> = {
             let mut tables: InstructionTable<H> = [control::unknown; 256];
             let mut i = 0;
@@ -343,7 +340,7 @@ macro_rules! opcodes {
         };
 
         /// Returns the instruction function for the given opcode and spec.
-        pub const fn instruction<T, H: Host<T> + ?Sized, SPEC: Spec>(opcode: u8) -> Instruction<H> {
+        pub const fn instruction<H: Host<u32> + ?Sized, SPEC: Spec>(opcode: u8) -> Instruction<H> {
             match opcode {
                 $($name => $f,)*
                 _ => control::unknown,
@@ -391,7 +388,7 @@ opcodes! {
     0x07 => SMOD       => arithmetic::smod           => stack_io<2, 1>;
     0x08 => ADDMOD     => arithmetic::addmod         => stack_io<3, 1>;
     0x09 => MULMOD     => arithmetic::mulmod         => stack_io<3, 1>;
-    0x0A => EXP        => arithmetic::exp::<H, SPEC> => stack_io<2, 1>;
+    0x0A => EXP        => arithmetic::exp::<T, H, SPEC> => stack_io<2, 1>;
     0x0B => SIGNEXTEND => arithmetic::signextend     => stack_io<2, 1>;
     // 0x0C
     // 0x0D
@@ -408,9 +405,9 @@ opcodes! {
     0x18 => XOR    => bitwise::bitxor         => stack_io<2, 1>;
     0x19 => NOT    => bitwise::not            => stack_io<1, 1>;
     0x1A => BYTE   => bitwise::byte           => stack_io<2, 1>;
-    0x1B => SHL    => bitwise::shl::<H, SPEC> => stack_io<2, 1>;
-    0x1C => SHR    => bitwise::shr::<H, SPEC> => stack_io<2, 1>;
-    0x1D => SAR    => bitwise::sar::<H, SPEC> => stack_io<2, 1>;
+    0x1B => SHL    => bitwise::shl::<T, H, SPEC> => stack_io<2, 1>;
+    0x1C => SHR    => bitwise::shr::<T, H, SPEC> => stack_io<2, 1>;
+    0x1D => SAR    => bitwise::sar::<T, H, SPEC> => stack_io<2, 1>;
     // 0x1E
     // 0x1F
     0x20 => KECCAK256 => system::keccak256    => stack_io<2, 1>;
@@ -430,7 +427,7 @@ opcodes! {
     // 0x2E
     // 0x2F
     0x30 => ADDRESS      => system::address          => stack_io<0, 1>;
-    0x31 => BALANCE      => host::balance::<H, SPEC> => stack_io<1, 1>;
+    0x31 => BALANCE      => host::balance::<T, H, SPEC> => stack_io<1, 1>;
     0x32 => ORIGIN       => host_env::origin         => stack_io<0, 1>;
     0x33 => CALLER       => system::caller           => stack_io<0, 1>;
     0x34 => CALLVALUE    => system::callvalue        => stack_io<0, 1>;
@@ -441,22 +438,22 @@ opcodes! {
     0x39 => CODECOPY     => system::codecopy         => stack_io<3, 0>, not_eof;
 
     0x3A => GASPRICE       => host_env::gasprice                => stack_io<0, 1>;
-    0x3B => EXTCODESIZE    => host::extcodesize::<H, SPEC>      => stack_io<1, 1>, not_eof;
-    0x3C => EXTCODECOPY    => host::extcodecopy::<H, SPEC>      => stack_io<4, 0>, not_eof;
-    0x3D => RETURNDATASIZE => system::returndatasize::<H, SPEC> => stack_io<0, 1>;
-    0x3E => RETURNDATACOPY => system::returndatacopy::<H, SPEC> => stack_io<3, 0>;
-    0x3F => EXTCODEHASH    => host::extcodehash::<H, SPEC>      => stack_io<1, 1>, not_eof;
+    0x3B => EXTCODESIZE    => host::extcodesize::<T, H, SPEC>      => stack_io<1, 1>, not_eof;
+    0x3C => EXTCODECOPY    => host::extcodecopy::<T, H, SPEC>      => stack_io<4, 0>, not_eof;
+    0x3D => RETURNDATASIZE => system::returndatasize::<T, H, SPEC> => stack_io<0, 1>;
+    0x3E => RETURNDATACOPY => system::returndatacopy::<T, H, SPEC> => stack_io<3, 0>;
+    0x3F => EXTCODEHASH    => host::extcodehash::<T, H, SPEC>      => stack_io<1, 1>, not_eof;
     0x40 => BLOCKHASH      => host::blockhash                   => stack_io<1, 1>;
     0x41 => COINBASE       => host_env::coinbase                => stack_io<0, 1>;
     0x42 => TIMESTAMP      => host_env::timestamp               => stack_io<0, 1>;
     0x43 => NUMBER         => host_env::block_number            => stack_io<0, 1>;
-    0x44 => DIFFICULTY     => host_env::difficulty::<H, SPEC>   => stack_io<0, 1>;
+    0x44 => DIFFICULTY     => host_env::difficulty::<T, H, SPEC>   => stack_io<0, 1>;
     0x45 => GASLIMIT       => host_env::gaslimit                => stack_io<0, 1>;
-    0x46 => CHAINID        => host_env::chainid::<H, SPEC>      => stack_io<0, 1>;
-    0x47 => SELFBALANCE    => host::selfbalance::<H, SPEC>      => stack_io<0, 1>;
-    0x48 => BASEFEE        => host_env::basefee::<H, SPEC>      => stack_io<0, 1>;
-    0x49 => BLOBHASH       => host_env::blob_hash::<H, SPEC>    => stack_io<1, 1>;
-    0x4A => BLOBBASEFEE    => host_env::blob_basefee::<H, SPEC> => stack_io<0, 1>;
+    0x46 => CHAINID        => host_env::chainid::<T, H, SPEC>      => stack_io<0, 1>;
+    0x47 => SELFBALANCE    => host::selfbalance::<T, H, SPEC>      => stack_io<0, 1>;
+    0x48 => BASEFEE        => host_env::basefee::<T, H, SPEC>      => stack_io<0, 1>;
+    0x49 => BLOBHASH       => host_env::blob_hash::<T, H, SPEC>    => stack_io<1, 1>;
+    0x4A => BLOBBASEFEE    => host_env::blob_basefee::<T, H, SPEC> => stack_io<0, 1>;
     // 0x4B
     // 0x4C
     // 0x4D
@@ -466,19 +463,19 @@ opcodes! {
     0x51 => MLOAD    => memory::mload            => stack_io<1, 1>;
     0x52 => MSTORE   => memory::mstore           => stack_io<2, 0>;
     0x53 => MSTORE8  => memory::mstore8          => stack_io<2, 0>;
-    0x54 => SLOAD    => host::sload::<H, SPEC>   => stack_io<1, 1>;
-    0x55 => SSTORE   => host::sstore::<H, SPEC>  => stack_io<2, 0>;
+    0x54 => SLOAD    => host::sload::<T, H, SPEC>   => stack_io<1, 1>;
+    0x55 => SSTORE   => host::sstore::<T, H, SPEC>  => stack_io<2, 0>;
     0x56 => JUMP     => control::jump            => stack_io<1, 0>, not_eof;
     0x57 => JUMPI    => control::jumpi           => stack_io<2, 0>, not_eof;
     0x58 => PC       => control::pc              => stack_io<0, 1>, not_eof;
     0x59 => MSIZE    => memory::msize            => stack_io<0, 1>;
     0x5A => GAS      => system::gas              => stack_io<0, 1>, not_eof;
     0x5B => JUMPDEST => control::jumpdest_or_nop => stack_io<0, 0>;
-    0x5C => TLOAD    => host::tload::<H, SPEC>   => stack_io<1, 1>;
-    0x5D => TSTORE   => host::tstore::<H, SPEC>  => stack_io<2, 0>;
-    0x5E => MCOPY    => memory::mcopy::<H, SPEC> => stack_io<3, 0>;
+    0x5C => TLOAD    => host::tload::<T, H, SPEC>   => stack_io<1, 1>;
+    0x5D => TSTORE   => host::tstore::<T, H, SPEC>  => stack_io<2, 0>;
+    0x5E => MCOPY    => memory::mcopy::<T, H, SPEC> => stack_io<3, 0>;
 
-    0x5F => PUSH0  => stack::push0::<H, SPEC> => stack_io<0, 1>;
+    0x5F => PUSH0  => stack::push0::<T, H, SPEC> => stack_io<0, 1>;
     0x60 => PUSH1  => stack::push::<1, H>  => stack_io<0, 1>, imm_size<1>;
     0x61 => PUSH2  => stack::push::<2, H>  => stack_io<0, 1>, imm_size<2>;
     0x62 => PUSH3  => stack::push::<3, H>  => stack_io<0, 1>, imm_size<3>;

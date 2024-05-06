@@ -92,7 +92,7 @@ mod tests {
 
     #[test]
     fn object_safety() {
-        assert_host::<DummyHost>();
-        assert_host::<dyn Host>();
+        assert_host::<u32, DummyHost>();
+        assert_host::<u32, dyn Host<u32>>();
     }
 }

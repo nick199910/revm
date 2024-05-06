@@ -3,6 +3,7 @@ use crate::{
     primitives::{Address, Env, Log, B256, KECCAK_EMPTY},
     Host, SStoreResult, SelfDestructResult,
 };
+use std::sync::Arc;
 use std::vec::Vec;
 
 use super::LoadAccountResult;
@@ -34,7 +35,7 @@ impl DummyHost {
     }
 }
 
-impl<T> Host<T> for DummyHost {
+impl Host<u32> for DummyHost {
     #[inline]
     fn env(&self) -> &Env {
         &self.env
@@ -61,8 +62,8 @@ impl<T> Host<T> for DummyHost {
     }
 
     #[inline]
-    fn code(&mut self, _address: Address) -> Option<(Bytecode, bool)> {
-        Some((Bytecode::default(), false))
+    fn code(&mut self, _address: Address) -> Option<(Arc<Bytecode>, bool)> {
+        Some((Arc::new(Bytecode::default()), false))
     }
 
     #[inline]
