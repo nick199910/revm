@@ -8,7 +8,7 @@ use core::cmp::min;
 use revm_primitives::BLOCK_HASH_HISTORY;
 use std::vec::Vec;
 
-pub fn balance<H: Host + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: &mut H) {
+pub fn balance<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: &mut H) {
     pop_address!(interpreter, address);
     let Some((balance, is_cold)) = host.balance(address) else {
         interpreter.instruction_result = InstructionResult::FatalExternalError;
@@ -31,7 +31,10 @@ pub fn balance<H: Host + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host
 }
 
 /// EIP-1884: Repricing for trie-size-dependent opcodes
-pub fn selfbalance<H: Host + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: &mut H) {
+pub fn selfbalance<T, H: Host<T> + ?Sized, SPEC: Spec>(
+    interpreter: &mut Interpreter,
+    host: &mut H,
+) {
     check!(interpreter, ISTANBUL);
     gas!(interpreter, gas::LOW);
     let Some((balance, _)) = host.balance(interpreter.contract.target_address) else {
@@ -41,7 +44,10 @@ pub fn selfbalance<H: Host + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, 
     push!(interpreter, balance);
 }
 
-pub fn extcodesize<H: Host + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: &mut H) {
+pub fn extcodesize<T, H: Host<T> + ?Sized, SPEC: Spec>(
+    interpreter: &mut Interpreter,
+    host: &mut H,
+) {
     pop_address!(interpreter, address);
     let Some((code, is_cold)) = host.code(address) else {
         interpreter.instruction_result = InstructionResult::FatalExternalError;
@@ -59,7 +65,10 @@ pub fn extcodesize<H: Host + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, 
 }
 
 /// EIP-1052: EXTCODEHASH opcode
-pub fn extcodehash<H: Host + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: &mut H) {
+pub fn extcodehash<T, H: Host<T> + ?Sized, SPEC: Spec>(
+    interpreter: &mut Interpreter,
+    host: &mut H,
+) {
     check!(interpreter, CONSTANTINOPLE);
     pop_address!(interpreter, address);
     let Some((code_hash, is_cold)) = host.code_hash(address) else {
@@ -76,7 +85,10 @@ pub fn extcodehash<H: Host + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, 
     push_b256!(interpreter, code_hash);
 }
 
-pub fn extcodecopy<H: Host + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: &mut H) {
+pub fn extcodecopy<T, H: Host<T> + ?Sized, SPEC: Spec>(
+    interpreter: &mut Interpreter,
+    host: &mut H,
+) {
     pop_address!(interpreter, address);
     pop!(interpreter, memory_offset, code_offset, len_u256);
 
@@ -103,7 +115,7 @@ pub fn extcodecopy<H: Host + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, 
         .set_data(memory_offset, code_offset, len, &code.original_bytes());
 }
 
-pub fn blockhash<H: Host + ?Sized>(interpreter: &mut Interpreter, host: &mut H) {
+pub fn blockhash<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, host: &mut H) {
     gas!(interpreter, gas::BLOCKHASH);
     pop_top!(interpreter, number);
 
@@ -122,7 +134,7 @@ pub fn blockhash<H: Host + ?Sized>(interpreter: &mut Interpreter, host: &mut H) 
     *number = U256::ZERO;
 }
 
-pub fn sload<H: Host + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: &mut H) {
+pub fn sload<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: &mut H) {
     pop_top!(interpreter, index);
     let Some((value, is_cold)) = host.sload(interpreter.contract.target_address, *index) else {
         interpreter.instruction_result = InstructionResult::FatalExternalError;
@@ -132,7 +144,7 @@ pub fn sload<H: Host + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: 
     *index = value;
 }
 
-pub fn sstore<H: Host + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: &mut H) {
+pub fn sstore<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: &mut H) {
     require_non_staticcall!(interpreter);
 
     pop!(interpreter, index, value);
@@ -158,7 +170,7 @@ pub fn sstore<H: Host + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host:
 
 /// EIP-1153: Transient storage opcodes
 /// Store value to transient storage
-pub fn tstore<H: Host + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: &mut H) {
+pub fn tstore<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: &mut H) {
     check!(interpreter, CANCUN);
     require_non_staticcall!(interpreter);
     gas!(interpreter, gas::WARM_STORAGE_READ_COST);
@@ -170,7 +182,7 @@ pub fn tstore<H: Host + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host:
 
 /// EIP-1153: Transient storage opcodes
 /// Load value from transient storage
-pub fn tload<H: Host + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: &mut H) {
+pub fn tload<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: &mut H) {
     check!(interpreter, CANCUN);
     gas!(interpreter, gas::WARM_STORAGE_READ_COST);
 
@@ -179,7 +191,7 @@ pub fn tload<H: Host + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: 
     *index = host.tload(interpreter.contract.target_address, *index);
 }
 
-pub fn log<const N: usize, H: Host + ?Sized>(interpreter: &mut Interpreter, host: &mut H) {
+pub fn log<const N: usize, T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, host: &mut H) {
     require_non_staticcall!(interpreter);
 
     pop!(interpreter, offset, len);
@@ -212,7 +224,10 @@ pub fn log<const N: usize, H: Host + ?Sized>(interpreter: &mut Interpreter, host
     host.log(log);
 }
 
-pub fn selfdestruct<H: Host + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: &mut H) {
+pub fn selfdestruct<T, H: Host<T> + ?Sized, SPEC: Spec>(
+    interpreter: &mut Interpreter,
+    host: &mut H,
+) {
     require_non_staticcall!(interpreter);
     pop_address!(interpreter, target);
 

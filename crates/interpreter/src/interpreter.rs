@@ -15,7 +15,7 @@ use crate::{
     FunctionStack, Gas, Host, InstructionResult, InterpreterAction,
 };
 use core::cmp::min;
-use revm_primitives::{Bytecode, Eof, U256};
+use revm_primitives::{Bytecode, Eof, Spec, MAX_INSTRUCTION_SIZE, U256};
 use std::borrow::ToOwned;
 
 /// EVM bytecode interpreter.
@@ -330,8 +330,11 @@ impl Interpreter {
     ///
     /// Internally it will increment instruction pointer by one.
     #[inline]
-    pub(crate) fn step<FN, H: Host + ?Sized>(&mut self, instruction_table: &[FN; 256], host: &mut H)
-    where
+    pub(crate) fn step<T, FN, H: Host<T> + ?Sized>(
+        &mut self,
+        instruction_table: &[FN; 256],
+        host: &mut H,
+    ) where
         FN: Fn(&mut Interpreter, &mut H),
     {
         // Get current opcode.
@@ -351,8 +354,28 @@ impl Interpreter {
         core::mem::replace(&mut self.shared_memory, EMPTY_SHARED_MEMORY)
     }
 
+    /// loop steps until we are finished with execution
+    // pub fn run_inspect<T, H: Host<T>, SPEC: Spec>(
+    //     &mut self,
+    //     host: &mut H<T>,
+    //     additional_data: &mut T,
+    // ) -> InstructionResult {
+    //     for _count in 0..MAX_INSTRUCTION_SIZE {
+    //         let table: InstructionTable<dyn Host> =
+    //             opcode::make_instruction_table::<dyn Host, CancunSpec>();
+
+    //         if self.instruction_result == InstructionResult::Continue {
+    //             host.step(self, additional_data);
+    //             self.step::<H>(host, additional_data);
+    //         } else {
+    //             break;
+    //         }
+    //     }
+    //     self.instruction_result
+    // }
+
     /// Executes the interpreter until it returns or stops.
-    pub fn run<FN, H: Host + ?Sized>(
+    pub fn run<T, FN, H: Host<T> + ?Sized>(
         &mut self,
         shared_memory: SharedMemory,
         instruction_table: &[FN; 256],

@@ -1,10 +1,12 @@
+use std::sync::Arc;
+
 use crate::primitives::{Address, Bytecode, Env, Log, B256, U256};
 
 mod dummy;
 pub use dummy::DummyHost;
 
 /// EVM context host.
-pub trait Host {
+pub trait Host<T> {
     /// Returns a reference to the environment.
     fn env(&self) -> &Env;
 
@@ -23,7 +25,7 @@ pub trait Host {
     fn balance(&mut self, address: Address) -> Option<(U256, bool)>;
 
     /// Get code of `address` and if the account is cold.
-    fn code(&mut self, address: Address) -> Option<(Bytecode, bool)>;
+    fn code(&mut self, address: Address) -> Option<(Arc<Bytecode>, bool)>;
 
     /// Get code hash of `address` and if the account is cold.
     fn code_hash(&mut self, address: Address) -> Option<(B256, bool)>;
@@ -86,7 +88,7 @@ pub struct SelfDestructResult {
 mod tests {
     use super::*;
 
-    fn assert_host<H: Host + ?Sized>() {}
+    fn assert_host<T, H: Host<T> + ?Sized>() {}
 
     #[test]
     fn object_safety() {

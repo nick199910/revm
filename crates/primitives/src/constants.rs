@@ -12,6 +12,8 @@ pub const BLOCK_HASH_HISTORY: usize = 256;
 /// Limit of maximum initcode size is 2 * MAX_CODE_SIZE
 pub const MAX_INITCODE_SIZE: usize = 2 * MAX_CODE_SIZE;
 
+pub const MAX_INSTRUCTION_SIZE: usize = 8_000_000;
+
 /// Precompile 3 is special in few places
 pub const PRECOMPILE3: Address =
     Address::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3]);

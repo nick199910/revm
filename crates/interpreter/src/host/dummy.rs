@@ -34,7 +34,7 @@ impl DummyHost {
     }
 }
 
-impl Host for DummyHost {
+impl<T> Host<T> for DummyHost {
     #[inline]
     fn env(&self) -> &Env {
         &self.env

@@ -30,15 +30,18 @@ pub enum InstructionTables<'a, H> {
     Boxed(BoxedInstructionTable<'a, H>),
 }
 
-impl<H: Host> InstructionTables<'_, H> {
+impl<T, H: Host<T>> InstructionTables<'_, T, H>
+where
+    T: std::cmp::PartialOrd,
+{
     /// Creates a plain instruction table for the given spec.
     #[inline]
     pub const fn new_plain<SPEC: Spec>() -> Self {
-        Self::Plain(make_instruction_table::<H, SPEC>())
+        Self::Plain(make_instruction_table::<T, H, SPEC>())
     }
 }
 
-impl<'a, H: Host + 'a> InstructionTables<'a, H> {
+impl<'a, T, H: Host<T> + 'a> InstructionTables<'a, T, H> {
     /// Inserts a boxed instruction into the table with the specified index.
     ///
     /// This will convert the table into the [BoxedInstructionTable] variant if it is currently a
@@ -90,14 +93,14 @@ impl<'a, H: Host + 'a> InstructionTables<'a, H> {
 
 /// Make instruction table.
 #[inline]
-pub const fn make_instruction_table<H: Host + ?Sized, SPEC: Spec>() -> InstructionTable<H> {
+pub const fn make_instruction_table<T, H: Host<T> + ?Sized, SPEC: Spec>() -> InstructionTable<H> {
     // Force const-eval of the table creation, making this function trivial.
     // TODO: Replace this with a `const {}` block once it is stable.
-    struct ConstTable<H: Host + ?Sized, SPEC: Spec> {
+    struct ConstTable<T, H: Host<T> + ?Sized, SPEC: Spec> {
         _host: core::marker::PhantomData<H>,
         _spec: core::marker::PhantomData<SPEC>,
     }
-    impl<H: Host + ?Sized, SPEC: Spec> ConstTable<H, SPEC> {
+    impl<T, H: Host<T> + ?Sized, SPEC: Spec> ConstTable<T, H, SPEC> {
         const NEW: InstructionTable<H> = {
             let mut tables: InstructionTable<H> = [control::unknown; 256];
             let mut i = 0;
@@ -113,12 +116,12 @@ pub const fn make_instruction_table<H: Host + ?Sized, SPEC: Spec>() -> Instructi
 
 /// Make boxed instruction table that calls `outer` closure for every instruction.
 #[inline]
-pub fn make_boxed_instruction_table<'a, H, SPEC, FN>(
+pub fn make_boxed_instruction_table<'a, T, H, SPEC, FN>(
     table: InstructionTable<H>,
     mut outer: FN,
 ) -> BoxedInstructionTable<'a, H>
 where
-    H: Host,
+    H: Host<T>,
     SPEC: Spec + 'a,
     FN: FnMut(Instruction<H>) -> BoxedInstruction<'a, H>,
 {
@@ -340,7 +343,7 @@ macro_rules! opcodes {
         };
 
         /// Returns the instruction function for the given opcode and spec.
-        pub const fn instruction<H: Host + ?Sized, SPEC: Spec>(opcode: u8) -> Instruction<H> {
+        pub const fn instruction<T, H: Host<T> + ?Sized, SPEC: Spec>(opcode: u8) -> Instruction<H> {
             match opcode {
                 $($name => $f,)*
                 _ => control::unknown,
