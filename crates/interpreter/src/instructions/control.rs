@@ -193,7 +193,7 @@ mod test {
 
     #[test]
     fn rjump() {
-        let table = make_instruction_table::<_, u32, PragueSpec>();
+        let table = make_instruction_table::<u32, dyn Host<u32>, PragueSpec>();
         let mut host = DummyHost::default();
         let mut interp = Interpreter::new_bytecode(Bytecode::LegacyRaw(Bytes::from([
             RJUMP, 0x00, 0x02, STOP, STOP,
@@ -207,7 +207,7 @@ mod test {
 
     #[test]
     fn rjumpi() {
-        let table = make_instruction_table::<_, PragueSpec>();
+        let table = make_instruction_table::<u32, dyn Host<u32>, PragueSpec>();
         let mut host = DummyHost::default();
         let mut interp = Interpreter::new_bytecode(Bytecode::LegacyRaw(Bytes::from([
             RJUMPI, 0x00, 0x03, RJUMPI, 0x00, 0x01, STOP, STOP,
@@ -227,7 +227,7 @@ mod test {
 
     #[test]
     fn rjumpv() {
-        let table = make_instruction_table::<_, PragueSpec>();
+        let table = make_instruction_table::<u32, dyn Host<u32>, PragueSpec>();
         let mut host = DummyHost::default();
         let mut interp = Interpreter::new_bytecode(Bytecode::LegacyRaw(Bytes::from([
             RJUMPV,
@@ -283,7 +283,7 @@ mod test {
 
     #[test]
     fn callf_retf_jumpf() {
-        let table = make_instruction_table::<_, PragueSpec>();
+        let table = make_instruction_table::<u32, dyn Host<u32>, PragueSpec>();
         let mut host = DummyHost::default();
         let mut eof = dummy_eof();
 

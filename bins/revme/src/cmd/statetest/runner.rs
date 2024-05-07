@@ -114,12 +114,12 @@ fn skip_test(path: &Path) -> bool {
     ) || path_str.contains("stEOF")
 }
 
-fn check_evm_execution<EXT>(
+fn check_evm_execution<T, EXT>(
     test: &Test,
     expected_output: Option<&Bytes>,
     test_name: &str,
     exec_result: &EVMResultGeneric<ExecutionResult, Infallible>,
-    evm: &Evm<'_, EXT, &mut State<EmptyDB>>,
+    evm: &Evm<'_, T, EXT, &mut State<EmptyDB>>,
     print_json_outcome: bool,
 ) -> Result<(), TestError> {
     let logs_root = log_rlp_hash(exec_result.as_ref().map(|r| r.logs()).unwrap_or_default());
@@ -379,7 +379,7 @@ pub fn execute_test_suite(
                     let res = evm.transact_commit();
                     *elapsed.lock().unwrap() += timer.elapsed();
 
-                    let Err(e) = check_evm_execution(
+                    let Err(e) = check_evm_execution::<u32, TracerEip3155>(
                         &test,
                         unit.out.as_ref(),
                         &name,
@@ -431,7 +431,11 @@ pub fn execute_test_suite(
 
                 let path = path.display();
                 println!("\nTraces:");
-                let mut evm = Evm::builder()
+                let mut evm: Evm<
+                    u32,
+                    TracerEip3155,
+                    revm::db::State<revm::db::EmptyDBTyped<Infallible>>,
+                > = Evm::builder()
                     .with_spec_id(spec_id)
                     .with_db(state)
                     .with_env(env.clone())

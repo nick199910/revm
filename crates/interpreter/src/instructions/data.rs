@@ -104,7 +104,7 @@ mod test {
 
     #[test]
     fn dataload_dataloadn() {
-        let table = make_instruction_table::<_, u32, PragueSpec>();
+        let table = make_instruction_table::<u32, dyn Host<u32>, PragueSpec>();
         let mut host = DummyHost::default();
         let eof = dummy_eof(Bytes::from([
             DATALOAD, DATALOADN, 0x00, 0x00, DATALOAD, DATALOADN, 0x00, 35, DATALOAD, DATALOADN,
@@ -160,7 +160,7 @@ mod test {
 
     #[test]
     fn data_copy() {
-        let table = make_instruction_table::<_, PragueSpec>();
+        let table = make_instruction_table::<u32, dyn Host<u32>, PragueSpec>();
         let mut host = DummyHost::default();
         let eof = dummy_eof(Bytes::from([DATACOPY, DATACOPY, DATACOPY, DATACOPY]));
 

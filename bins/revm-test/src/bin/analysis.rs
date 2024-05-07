@@ -13,7 +13,7 @@ fn main() {
     let bytecode_analysed = to_analysed(Bytecode::new_raw(contract_data));
 
     // BenchmarkDB is dummy state that implements Database trait.
-    let mut evm = Evm::builder()
+    let mut evm: Evm<'_, u32, (), BenchmarkDB> = Evm::builder()
         .modify_tx_env(|tx| {
             // execution globals block hash/gas_limit/coinbase/timestamp..
             tx.caller = address!("1000000000000000000000000000000000000000");

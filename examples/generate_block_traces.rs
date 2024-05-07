@@ -75,27 +75,28 @@ async fn main() -> anyhow::Result<()> {
     let state_db = EthersDB::new(Arc::clone(&client), Some(prev_id)).expect("panic");
     let cache_db: CacheDB<EthersDB<Provider<Http>>> = CacheDB::new(state_db);
     let mut state = StateBuilder::new_with_database(cache_db).build();
-    let mut evm = Evm::builder()
-        .with_db(&mut state)
-        .with_external_context(TracerEip3155::new(Box::new(std::io::stdout())))
-        .modify_block_env(|b| {
-            if let Some(number) = block.number {
-                let nn = number.0[0];
-                b.number = U256::from(nn);
-            }
-            local_fill!(b.coinbase, block.author);
-            local_fill!(b.timestamp, Some(block.timestamp), U256::from_limbs);
-            local_fill!(b.difficulty, Some(block.difficulty), U256::from_limbs);
-            local_fill!(b.gas_limit, Some(block.gas_limit), U256::from_limbs);
-            if let Some(base_fee) = block.base_fee_per_gas {
-                local_fill!(b.basefee, Some(base_fee), U256::from_limbs);
-            }
-        })
-        .modify_cfg_env(|c| {
-            c.chain_id = chain_id;
-        })
-        .append_handler_register(inspector_handle_register)
-        .build();
+    let mut evm: Evm<u32, TracerEip3155, &mut revm::db::State<CacheDB<EthersDB<Provider<Http>>>>> =
+        Evm::builder()
+            .with_db(&mut state)
+            .with_external_context(TracerEip3155::new(Box::new(std::io::stdout())))
+            .modify_block_env(|b| {
+                if let Some(number) = block.number {
+                    let nn = number.0[0];
+                    b.number = U256::from(nn);
+                }
+                local_fill!(b.coinbase, block.author);
+                local_fill!(b.timestamp, Some(block.timestamp), U256::from_limbs);
+                local_fill!(b.difficulty, Some(block.difficulty), U256::from_limbs);
+                local_fill!(b.gas_limit, Some(block.gas_limit), U256::from_limbs);
+                if let Some(base_fee) = block.base_fee_per_gas {
+                    local_fill!(b.basefee, Some(base_fee), U256::from_limbs);
+                }
+            })
+            .modify_cfg_env(|c| {
+                c.chain_id = chain_id;
+            })
+            .append_handler_register(inspector_handle_register)
+            .build();
 
     let txs = block.transactions.len();
     println!("Found {txs} transactions.");

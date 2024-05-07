@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::analysis::to_analysed;
 use crate::{
     primitives::{Address, Bytecode, Bytes, Env, TransactTo, B256, U256},
@@ -12,7 +14,7 @@ pub struct Contract {
     pub input: Bytes,
     /// Bytecode contains contract code, size of original code, analysis with gas block and jump table.
     /// Note that current code is extended with push padding and STOP at end.
-    pub bytecode: Bytecode,
+    pub bytecode: Arc<Bytecode>,
     /// Bytecode hash for legacy. For EOF this would be None.
     pub hash: Option<B256>,
     /// Target address of the account. Storage of this address is going to be modified.
@@ -35,7 +37,7 @@ impl Contract {
         call_value: U256,
     ) -> Self {
         let bytecode = to_analysed(bytecode);
-
+        let bytecode = Arc::new(bytecode);
         Self {
             input,
             bytecode,

@@ -10,14 +10,14 @@ use revm_interpreter::opcode::InstructionTables;
 use std::{boxed::Box, rc::Rc, sync::Arc, vec::Vec};
 
 /// Provides access to an `Inspector` instance.
-pub trait GetInspector<DB: Database> {
+pub trait GetInspector<T, DB: Database> {
     /// Returns the associated `Inspector`.
-    fn get_inspector(&mut self) -> &mut impl Inspector<DB>;
+    fn get_inspector(&mut self) -> &mut impl Inspector<T, DB>;
 }
 
-impl<DB: Database, INSP: Inspector<DB>> GetInspector<DB> for INSP {
+impl<T, DB: Database, INSP: Inspector<T, DB>> GetInspector<T, DB> for INSP {
     #[inline]
-    fn get_inspector(&mut self) -> &mut impl Inspector<DB> {
+    fn get_inspector(&mut self) -> &mut impl Inspector<T, DB> {
         self
     }
 }
@@ -34,7 +34,7 @@ impl<DB: Database, INSP: Inspector<DB>> GetInspector<DB> for INSP {
 /// A few instructions handlers are wrapped twice once for `step` and `step_end`
 /// and in case of Logs and Selfdestruct wrapper is wrapped again for the
 /// `log` and `selfdestruct` calls.
-pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<DB>>(
+pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<T, DB>>(
     handler: &mut EvmHandler<'a, T, EXT, DB>,
 ) {
     // Every instruction inside flat table that is going to be wrapped by inspector calls.
@@ -142,7 +142,8 @@ pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<DB>>(
         move |ctx, mut inputs| -> Result<FrameOrResult, EVMError<DB::Error>> {
             let inspector = ctx.external.get_inspector();
             // call inspector create to change input or return outcome.
-            if let Some(outcome) = inspector.create(&mut ctx.evm, &mut inputs) {
+            if let Some(outcome) = inspector.create(&mut ctx.evm, &mut inputs, &mut u32::from_be(1))
+            {
                 create_input_stack_inner.borrow_mut().push(inputs.clone());
                 return Ok(FrameOrResult::Result(FrameResult::Create(outcome)));
             }
@@ -164,7 +165,10 @@ pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<DB>>(
     handler.execution.call = Arc::new(
         move |ctx, mut inputs| -> Result<FrameOrResult, EVMError<DB::Error>> {
             // Call inspector to change input or return outcome.
-            let outcome = ctx.external.get_inspector().call(&mut ctx.evm, &mut inputs);
+            let outcome = ctx
+                .external
+                .get_inspector()
+                .call(&mut ctx.evm, &mut inputs, &mut T);
             call_input_stack_inner.borrow_mut().push(inputs.clone());
             if let Some(outcome) = outcome {
                 return Ok(FrameOrResult::Result(FrameResult::Call(outcome)));
@@ -188,10 +192,12 @@ pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<DB>>(
     handler.execution.insert_call_outcome =
         Arc::new(move |ctx, frame, shared_memory, mut outcome| {
             let call_inputs = call_input_stack_inner.borrow_mut().pop().unwrap();
-            outcome = ctx
-                .external
-                .get_inspector()
-                .call_end(&mut ctx.evm, &call_inputs, outcome);
+            outcome = ctx.external.get_inspector().call_end(
+                &mut ctx.evm,
+                &call_inputs,
+                outcome,
+                &mut "test",
+            );
             old_handle(ctx, frame, shared_memory, outcome)
         });
 
@@ -200,10 +206,12 @@ pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<DB>>(
     let old_handle = handler.execution.insert_create_outcome.clone();
     handler.execution.insert_create_outcome = Arc::new(move |ctx, frame, mut outcome| {
         let create_inputs = create_input_stack_inner.borrow_mut().pop().unwrap();
-        outcome = ctx
-            .external
-            .get_inspector()
-            .create_end(&mut ctx.evm, &create_inputs, outcome);
+        outcome = ctx.external.get_inspector().create_end(
+            &mut ctx.evm,
+            &create_inputs,
+            outcome,
+            &mut "test",
+        );
         old_handle(ctx, frame, outcome)
     });
 
@@ -216,11 +224,17 @@ pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<DB>>(
         match frame_result {
             FrameResult::Call(outcome) => {
                 let call_inputs = call_input_stack.borrow_mut().pop().unwrap();
-                *outcome = inspector.call_end(&mut ctx.evm, &call_inputs, outcome.clone());
+                *outcome =
+                    inspector.call_end(&mut ctx.evm, &call_inputs, outcome.clone(), &mut "test");
             }
             FrameResult::Create(outcome) => {
                 let create_inputs = create_input_stack.borrow_mut().pop().unwrap();
-                *outcome = inspector.create_end(&mut ctx.evm, &create_inputs, outcome.clone());
+                *outcome = inspector.create_end(
+                    &mut ctx.evm,
+                    &create_inputs,
+                    outcome.clone(),
+                    &mut "test",
+                );
             }
             FrameResult::EOFCreate(outcome) => {
                 let eofcreate_inputs = eofcreate_input_stack.borrow_mut().pop().unwrap();
@@ -236,7 +250,7 @@ pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<DB>>(
 pub fn inspector_instruction<
     'a,
     T,
-    INSP: GetInspector<DB>,
+    INSP: GetInspector<T, DB>,
     DB: Database,
     Instruction: Fn(&mut Interpreter, &mut Evm<'a, T, INSP, DB>) + 'a,
 >(
@@ -251,7 +265,7 @@ pub fn inspector_instruction<
             host.context
                 .external
                 .get_inspector()
-                .step(interpreter, &mut host.context.evm);
+                .step(interpreter, &mut host.context.evm, &mut T);
             if interpreter.instruction_result != InstructionResult::Continue {
                 return;
             }
@@ -262,10 +276,11 @@ pub fn inspector_instruction<
             // execute instruction.
             instruction(interpreter, host);
 
-            host.context
-                .external
-                .get_inspector()
-                .step_end(interpreter, &mut host.context.evm);
+            host.context.external.get_inspector().step_end(
+                interpreter,
+                &mut host.context.evm,
+                &mut u32::from_be(1),
+            );
         },
     )
 }
@@ -305,7 +320,7 @@ mod tests {
         call_end: bool,
     }
 
-    impl<DB: Database> Inspector<DB> for StackInspector {
+    impl<T, DB: Database> Inspector<T, DB> for StackInspector {
         fn initialize_interp(&mut self, _interp: &mut Interpreter, _context: &mut EvmContext<DB>) {
             if self.initialize_interp_called {
                 unreachable!("initialize_interp should not be called twice")
@@ -313,19 +328,20 @@ mod tests {
             self.initialize_interp_called = true;
         }
 
-        fn step(&mut self, _interp: &mut Interpreter, _context: &mut EvmContext<DB>) {
+        fn step(&mut self, _interp: &mut Interpreter, _context: &mut EvmContext<DB>, _: &mut T) {
             self.step += 1;
         }
 
-        fn step_end(&mut self, _interp: &mut Interpreter, _context: &mut EvmContext<DB>) {
+        fn step_end(
+            &mut self,
+            _interp: &mut Interpreter,
+            _context: &mut EvmContext<DB>,
+            _: &mut T,
+        ) {
             self.step_end += 1;
         }
 
-        fn call(
-            &mut self,
-            context: &mut EvmContext<DB>,
-            _call: &mut CallInputs,
-        ) -> Option<CallOutcome> {
+        fn call(&mut self, context: &mut EvmContext<DB>, _: &mut T) -> Option<CallOutcome> {
             if self.call {
                 unreachable!("call should not be called twice")
             }
@@ -339,6 +355,7 @@ mod tests {
             context: &mut EvmContext<DB>,
             _inputs: &CallInputs,
             outcome: CallOutcome,
+            _: &mut T,
         ) -> CallOutcome {
             if self.call_end {
                 unreachable!("call_end should not be called twice")
@@ -352,6 +369,7 @@ mod tests {
             &mut self,
             context: &mut EvmContext<DB>,
             _call: &mut CreateInputs,
+            _: &mut T,
         ) -> Option<CreateOutcome> {
             assert_eq!(context.journaled_state.depth(), 0);
             None
@@ -362,6 +380,7 @@ mod tests {
             context: &mut EvmContext<DB>,
             _inputs: &CreateInputs,
             outcome: CreateOutcome,
+            _: &mut T,
         ) -> CreateOutcome {
             assert_eq!(context.journaled_state.depth(), 0);
             outcome

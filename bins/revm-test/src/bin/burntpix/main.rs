@@ -35,14 +35,15 @@ fn main() {
 
     let db = init_db();
 
-    let mut evm = Evm::builder()
-        .modify_tx_env(|tx| {
-            tx.caller = address!("1000000000000000000000000000000000000000");
-            tx.transact_to = TransactTo::Call(BURNTPIX_MAIN_ADDRESS);
-            tx.data = run_call_data.clone().into();
-        })
-        .with_db(db)
-        .build();
+    let mut evm: Evm<u32, (), CacheDB<revm::db::EmptyDBTyped<std::convert::Infallible>>> =
+        Evm::builder()
+            .modify_tx_env(|tx| {
+                tx.caller = address!("1000000000000000000000000000000000000000");
+                tx.transact_to = TransactTo::Call(BURNTPIX_MAIN_ADDRESS);
+                tx.data = run_call_data.clone().into();
+            })
+            .with_db(db)
+            .build();
 
     let started = Instant::now();
     let tx_result = evm.transact().unwrap().result;

@@ -72,7 +72,7 @@ impl Cmd {
             .into();
         // BenchmarkDB is dummy state that implements Database trait.
         // the bytecode is deployed at zero address.
-        let mut evm = Evm::builder()
+        let mut evm: Evm<'_, u32, (), BenchmarkDB> = Evm::builder()
             .with_db(BenchmarkDB::new_bytecode(Bytecode::new_raw(
                 bytecode.into(),
             )))

@@ -11,9 +11,8 @@ use std::sync::Arc;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // create ethers client and wrap it in Arc<M>
-    let client = Provider::<Http>::try_from(
-        "https://mainnet.infura.io/v3/c60b0bb42f8a4c6481ecd229eddaca27",
-    )?;
+    let client =
+        Provider::<Http>::try_from("https://lb.nodies.app/v1/181a5ebf4c954f8496ae7cbc1ac8d03b")?;
     let client = Arc::new(client);
 
     // ----------------------------------------------------------- //
@@ -65,20 +64,21 @@ async fn main() -> anyhow::Result<()> {
         .unwrap();
 
     // initialise an empty (default) EVM
-    let mut evm = Evm::builder()
-        .with_db(cache_db)
-        .modify_tx_env(|tx| {
-            // fill in missing bits of env struct
-            // change that to whatever caller you want to be
-            tx.caller = address!("0000000000000000000000000000000000000000");
-            // account you want to transact with
-            tx.transact_to = TransactTo::Call(pool_address);
-            // calldata formed via abigen
-            tx.data = encoded.0.into();
-            // transaction value in wei
-            tx.value = U256::from(0);
-        })
-        .build();
+    let mut evm: Evm<u32, (), CacheDB<revm::db::EmptyDBTyped<std::convert::Infallible>>> =
+        Evm::builder()
+            .with_db(cache_db)
+            .modify_tx_env(|tx| {
+                // fill in missing bits of env struct
+                // change that to whatever caller you want to be
+                tx.caller = address!("0000000000000000000000000000000000000000");
+                // account you want to transact with
+                tx.transact_to = TransactTo::Call(pool_address);
+                // calldata formed via abigen
+                tx.data = encoded.0.into();
+                // transaction value in wei
+                tx.value = U256::from(0);
+            })
+            .build();
 
     // execute transaction without writing to the DB
     let ref_tx = evm.transact().unwrap();

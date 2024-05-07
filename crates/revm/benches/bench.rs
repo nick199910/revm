@@ -88,7 +88,10 @@ fn transfer(c: &mut Criterion) {
     g.finish();
 }
 
-fn bench_transact<EXT>(g: &mut BenchmarkGroup<'_, WallTime>, evm: &mut Evm<'_, EXT, BenchmarkDB>) {
+fn bench_transact<EXT>(
+    g: &mut BenchmarkGroup<'_, WallTime>,
+    evm: &mut Evm<'_, u32, EXT, BenchmarkDB>,
+) {
     let state = match evm.context.evm.db.0 {
         Bytecode::LegacyRaw(_) => "raw",
         Bytecode::LegacyAnalyzed(_) => "analysed",
@@ -98,7 +101,7 @@ fn bench_transact<EXT>(g: &mut BenchmarkGroup<'_, WallTime>, evm: &mut Evm<'_, E
     g.bench_function(id, |b| b.iter(|| evm.transact().unwrap()));
 }
 
-fn bench_eval(g: &mut BenchmarkGroup<'_, WallTime>, evm: &mut Evm<'static, (), BenchmarkDB>) {
+fn bench_eval(g: &mut BenchmarkGroup<'_, WallTime>, evm: &mut Evm<'static, u32, (), BenchmarkDB>) {
     g.bench_function("eval", |b| {
         let contract = Contract {
             input: evm.context.evm.env.tx.data.clone(),
@@ -107,7 +110,7 @@ fn bench_eval(g: &mut BenchmarkGroup<'_, WallTime>, evm: &mut Evm<'static, (), B
         };
         let mut shared_memory = SharedMemory::new();
         let mut host = DummyHost::new(*evm.context.evm.env.clone());
-        let instruction_table = make_instruction_table::<DummyHost, BerlinSpec>();
+        let instruction_table = make_instruction_table::<u32, DummyHost, BerlinSpec>();
         b.iter(move || {
             // replace memory with empty memory to use it inside interpreter.
             // Later return memory back.

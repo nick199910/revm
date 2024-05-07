@@ -1,12 +1,12 @@
 use revm::{
-    db::{CacheDB, EmptyDB, WrapDatabaseRef},
+    db::{CacheDB, EmptyDB, EmptyDBTyped, WrapDatabaseRef},
     handler::register::HandleRegister,
     inspector_handle_register,
     inspectors::{NoOpInspector, TracerEip3155},
     primitives::ResultAndState,
     DatabaseCommit, DatabaseRef, Evm,
 };
-use std::error::Error;
+use std::{convert::Infallible, error::Error};
 
 trait DatabaseRefDebugError: DatabaseRef<Error = Self::DBError> {
     type DBError: std::fmt::Debug + Error + Send + Sync + 'static;
@@ -20,10 +20,10 @@ where
     type DBError = DBError;
 }
 
-fn run_transaction<EXT, DB: DatabaseRefDebugError>(
+fn run_transaction<T, EXT, DB: DatabaseRefDebugError>(
     db: DB,
     ext: EXT,
-    register_handles_fn: HandleRegister<EXT, WrapDatabaseRef<DB>>,
+    register_handles_fn: HandleRegister<T, EXT, WrapDatabaseRef<DB>>,
 ) -> anyhow::Result<(ResultAndState, DB)> {
     let mut evm = Evm::builder()
         .with_ref_db(db)
@@ -35,10 +35,10 @@ fn run_transaction<EXT, DB: DatabaseRefDebugError>(
     Ok((result, evm.into_context().evm.inner.db.0))
 }
 
-fn run_transaction_and_commit_with_ext<EXT, DB: DatabaseRefDebugError + DatabaseCommit>(
+fn run_transaction_and_commit_with_ext<T, EXT, DB: DatabaseRefDebugError + DatabaseCommit>(
     db: DB,
     ext: EXT,
-    register_handles_fn: HandleRegister<EXT, WrapDatabaseRef<DB>>,
+    register_handles_fn: HandleRegister<T, EXT, WrapDatabaseRef<DB>>,
 ) -> anyhow::Result<()> {
     // To circumvent borrow checker issues, we need to move the database into the
     // transaction and return it after the transaction is done.
@@ -54,7 +54,7 @@ fn run_transaction_and_commit(db: &mut CacheDB<EmptyDB>) -> anyhow::Result<()> {
     let ResultAndState { state: changes, .. } = {
         let rdb = &*db;
 
-        let mut evm = Evm::builder()
+        let mut evm = Evm::<u32, (), EmptyDBTyped<Infallible>>::builder()
             .with_ref_db(rdb)
             .with_external_context(NoOpInspector)
             .append_handler_register(inspector_handle_register)
@@ -74,7 +74,11 @@ fn main() -> anyhow::Result<()> {
 
     let mut tracer = TracerEip3155::new(Box::new(std::io::stdout()));
 
-    run_transaction_and_commit_with_ext(&mut cache_db, &mut tracer, inspector_handle_register)?;
+    run_transaction_and_commit_with_ext::<
+        u32,
+        &mut TracerEip3155,
+        &mut CacheDB<EmptyDBTyped<Infallible>>,
+    >(&mut cache_db, &mut tracer, inspector_handle_register)?;
     run_transaction_and_commit(&mut cache_db)?;
 
     Ok(())

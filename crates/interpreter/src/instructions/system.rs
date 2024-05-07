@@ -5,7 +5,7 @@ use crate::{
 };
 use core::ptr;
 
-pub fn keccak256<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn keccak256<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
     pop_top!(interpreter, offset, len_ptr);
     let len = as_usize_or_fail!(interpreter, len_ptr);
     gas_or_fail!(interpreter, gas::keccak256_cost(len as u64));
@@ -19,24 +19,24 @@ pub fn keccak256<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &m
     *len_ptr = hash.into();
 }
 
-pub fn address<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn address<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
     gas!(interpreter, gas::BASE);
     push_b256!(interpreter, interpreter.contract.target_address.into_word());
 }
 
-pub fn caller<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn caller<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
     gas!(interpreter, gas::BASE);
     push_b256!(interpreter, interpreter.contract.caller.into_word());
 }
 
-pub fn codesize<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn codesize<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
     gas!(interpreter, gas::BASE);
     // Inform the optimizer that the bytecode cannot be EOF to remove a bounds check.
     assume!(!interpreter.contract.bytecode.is_eof());
     push!(interpreter, U256::from(interpreter.contract.bytecode.len()));
 }
 
-pub fn codecopy<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn codecopy<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
     pop!(interpreter, memory_offset, code_offset, len);
     let len = as_usize_or_fail!(interpreter, len);
     gas_or_fail!(interpreter, gas::verylowcopy_cost(len as u64));
@@ -58,7 +58,7 @@ pub fn codecopy<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mu
     );
 }
 
-pub fn calldataload<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn calldataload<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
     gas!(interpreter, gas::VERYLOW);
     pop_top!(interpreter, offset_ptr);
     let mut word = B256::ZERO;
@@ -81,17 +81,17 @@ pub fn calldataload<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host:
     *offset_ptr = word.into();
 }
 
-pub fn calldatasize<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn calldatasize<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
     gas!(interpreter, gas::BASE);
     push!(interpreter, U256::from(interpreter.contract.input.len()));
 }
 
-pub fn callvalue<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn callvalue<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
     gas!(interpreter, gas::BASE);
     push!(interpreter, interpreter.contract.call_value);
 }
 
-pub fn calldatacopy<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn calldatacopy<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
     pop!(interpreter, memory_offset, data_offset, len);
     let len = as_usize_or_fail!(interpreter, len);
     gas_or_fail!(interpreter, gas::verylowcopy_cost(len as u64));
@@ -112,7 +112,10 @@ pub fn calldatacopy<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host:
 }
 
 /// EIP-211: New opcodes: RETURNDATASIZE and RETURNDATACOPY
-pub fn returndatasize<T, H:Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn returndatasize<T, H: Host<T> + ?Sized, SPEC: Spec>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+) {
     check!(interpreter, BYZANTIUM);
     gas!(interpreter, gas::BASE);
     push!(
@@ -122,7 +125,10 @@ pub fn returndatasize<T, H:Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Inter
 }
 
 /// EIP-211: New opcodes: RETURNDATASIZE and RETURNDATACOPY
-pub fn returndatacopy<T, H:Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn returndatacopy<T, H: Host<T> + ?Sized, SPEC: Spec>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+) {
     check!(interpreter, BYZANTIUM);
     pop!(interpreter, memory_offset, offset, len);
     let len = as_usize_or_fail!(interpreter, len);
@@ -144,7 +150,7 @@ pub fn returndatacopy<T, H:Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Inter
 }
 
 /// Part of EOF `<https://eips.ethereum.org/EIPS/eip-7069>`.
-pub fn returndataload<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn returndataload<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
     require_eof!(interpreter);
     gas!(interpreter, gas::VERYLOW);
     pop_top!(interpreter, offset);
@@ -174,7 +180,7 @@ mod test {
 
     #[test]
     fn returndataload() {
-        let table = make_instruction_table::<_, PragueSpec>();
+        let table = make_instruction_table::<u32, dyn Host<u32>, PragueSpec>();
         let mut host = DummyHost::default();
 
         let mut interp = Interpreter::new_bytecode(Bytecode::LegacyRaw(

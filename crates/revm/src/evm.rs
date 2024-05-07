@@ -14,7 +14,7 @@ use crate::{
     Context, ContextWithHandlerCfg, Frame, FrameOrResult, FrameResult,
 };
 use core::fmt;
-use revm_interpreter::{instructions::control::revert, CallInputs, CreateInputs};
+use revm_interpreter::{CallInputs, CreateInputs};
 use std::{sync::Arc, vec::Vec};
 
 /// EVM call stack limit.
@@ -54,7 +54,7 @@ impl<T, EXT, DB: Database + DatabaseCommit> Evm<'_, T, EXT, DB> {
 
 impl<'a, T> Evm<'a, T, (), EmptyDB> {
     /// Returns evm builder with empty database and empty external context.
-    pub fn builder() -> EvmBuilder<'a, u32, SetGenericStage, (), EmptyDB> {
+    pub fn builder() -> EvmBuilder<'a, T, SetGenericStage, (), EmptyDB> {
         EvmBuilder::default()
     }
 }

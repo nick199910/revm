@@ -184,13 +184,24 @@ impl TracerEip3155 {
     }
 }
 
-impl<DB: Database> Inspector<DB> for TracerEip3155 {
+impl<T, DB: Database> Inspector<T, DB> for TracerEip3155 {
     fn initialize_interp(&mut self, interp: &mut Interpreter, context: &mut EvmContext<DB>) {
-        self.gas_inspector.initialize_interp(interp, context);
+        // self.gas_inspector.initialize_interp(interp, context);
+        <GasInspector as Inspector<u32, DB>>::initialize_interp(
+            &mut self.gas_inspector,
+            interp,
+            context,
+        );
     }
 
-    fn step(&mut self, interp: &mut Interpreter, context: &mut EvmContext<DB>) {
-        self.gas_inspector.step(interp, context);
+    fn step(
+        &mut self,
+        interp: &mut Interpreter,
+        context: &mut EvmContext<DB>,
+        additional_data: &mut T,
+    ) {
+        self.gas_inspector
+            .step(interp, context, &mut u32::from_be(1));
         self.stack = interp.stack.data().clone();
         self.memory = if self.include_memory {
             Some(hex::encode_prefixed(interp.shared_memory.context_memory()))
@@ -204,8 +215,14 @@ impl<DB: Database> Inspector<DB> for TracerEip3155 {
         self.refunded = interp.gas.refunded();
     }
 
-    fn step_end(&mut self, interp: &mut Interpreter, context: &mut EvmContext<DB>) {
-        self.gas_inspector.step_end(interp, context);
+    fn step_end(
+        &mut self,
+        interp: &mut Interpreter,
+        context: &mut EvmContext<DB>,
+        additional_data: &mut T,
+    ) {
+        self.gas_inspector
+            .step_end(interp, context, &mut u32::from_be(1));
         if self.skip {
             self.skip = false;
             return;
@@ -240,8 +257,11 @@ impl<DB: Database> Inspector<DB> for TracerEip3155 {
         context: &mut EvmContext<DB>,
         inputs: &CallInputs,
         outcome: CallOutcome,
+        additional_data: &mut T,
     ) -> CallOutcome {
-        let outcome = self.gas_inspector.call_end(context, inputs, outcome);
+        let outcome = self
+            .gas_inspector
+            .call_end(context, inputs, outcome, &mut u32::from_be(1));
 
         if context.journaled_state.depth() == 0 {
             self.print_summary(&outcome.result, context);
@@ -257,8 +277,11 @@ impl<DB: Database> Inspector<DB> for TracerEip3155 {
         context: &mut EvmContext<DB>,
         inputs: &CreateInputs,
         outcome: CreateOutcome,
+        additional_data: &mut T,
     ) -> CreateOutcome {
-        let outcome = self.gas_inspector.create_end(context, inputs, outcome);
+        let outcome = self
+            .gas_inspector
+            .create_end(context, inputs, outcome, &mut u32::from_be(1));
 
         if context.journaled_state.depth() == 0 {
             self.print_summary(&outcome.result, context);
