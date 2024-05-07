@@ -3,7 +3,7 @@
 pub mod eof_printer;
 
 use crate::{instructions::*, primitives::Spec, Host, Interpreter};
-use core::{fmt, marker::PhantomData};
+use core::{any::Any, fmt, marker::PhantomData};
 use std::boxed::Box;
 
 /// EVM opcode function signature.
@@ -126,6 +126,7 @@ where
     H: Host<T>,
     SPEC: Spec + 'a,
     FN: FnMut(Instruction<H>) -> BoxedInstruction<'a, H>,
+    T: From<Box<dyn Any>>,
 {
     core::array::from_fn(|i| outer(table[i]))
 }

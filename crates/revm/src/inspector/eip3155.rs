@@ -198,7 +198,7 @@ impl<T, DB: Database> Inspector<T, DB> for TracerEip3155 {
         &mut self,
         interp: &mut Interpreter,
         context: &mut EvmContext<DB>,
-        additional_data: &mut T,
+        _additional_data: &mut T,
     ) {
         self.gas_inspector
             .step(interp, context, &mut u32::from_be(1));
@@ -219,7 +219,7 @@ impl<T, DB: Database> Inspector<T, DB> for TracerEip3155 {
         &mut self,
         interp: &mut Interpreter,
         context: &mut EvmContext<DB>,
-        additional_data: &mut T,
+        _additional_data: &mut T,
     ) {
         self.gas_inspector
             .step_end(interp, context, &mut u32::from_be(1));
@@ -257,7 +257,7 @@ impl<T, DB: Database> Inspector<T, DB> for TracerEip3155 {
         context: &mut EvmContext<DB>,
         inputs: &CallInputs,
         outcome: CallOutcome,
-        additional_data: &mut T,
+        _additional_data: &mut T,
     ) -> CallOutcome {
         let outcome = self
             .gas_inspector
@@ -277,7 +277,7 @@ impl<T, DB: Database> Inspector<T, DB> for TracerEip3155 {
         context: &mut EvmContext<DB>,
         inputs: &CreateInputs,
         outcome: CreateOutcome,
-        additional_data: &mut T,
+        _additional_data: &mut T,
     ) -> CreateOutcome {
         let outcome = self
             .gas_inspector

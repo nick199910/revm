@@ -105,7 +105,7 @@ fn bench_eval(g: &mut BenchmarkGroup<'_, WallTime>, evm: &mut Evm<'static, u32, 
     g.bench_function("eval", |b| {
         let contract = Contract {
             input: evm.context.evm.env.tx.data.clone(),
-            bytecode: to_analysed(evm.context.evm.db.0.clone()),
+            bytecode: to_analysed(evm.context.evm.db.0.clone()).into(),
             ..Default::default()
         };
         let mut shared_memory = SharedMemory::new();
