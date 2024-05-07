@@ -34,8 +34,8 @@ impl<DB: Database, INSP: Inspector<DB>> GetInspector<DB> for INSP {
 /// A few instructions handlers are wrapped twice once for `step` and `step_end`
 /// and in case of Logs and Selfdestruct wrapper is wrapped again for the
 /// `log` and `selfdestruct` calls.
-pub fn inspector_handle_register<'a, DB: Database, EXT: GetInspector<DB>>(
-    handler: &mut EvmHandler<'a, EXT, DB>,
+pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<DB>>(
+    handler: &mut EvmHandler<'a, T, EXT, DB>,
 ) {
     // Every instruction inside flat table that is going to be wrapped by inspector calls.
     let table = handler
@@ -50,6 +50,7 @@ pub fn inspector_handle_register<'a, DB: Database, EXT: GetInspector<DB>>(
             .into_iter()
             .map(|i| inspector_instruction(i))
             .collect::<Vec<_>>(),
+        InstructionTables::_Marker(_) => todo!(),
     };
 
     // Register inspector Log instruction.
@@ -57,7 +58,7 @@ pub fn inspector_handle_register<'a, DB: Database, EXT: GetInspector<DB>>(
         if let Some(i) = table.get_mut(index as usize) {
             let old = core::mem::replace(i, Box::new(|_, _| ()));
             *i = Box::new(
-                move |interpreter: &mut Interpreter, host: &mut Evm<'a, EXT, DB>| {
+                move |interpreter: &mut Interpreter, host: &mut Evm<'a, T, EXT, DB>| {
                     let old_log_len = host.context.evm.journaled_state.logs.len();
                     old(interpreter, host);
                     // check if log was added. It is possible that revert happened
@@ -95,7 +96,7 @@ pub fn inspector_handle_register<'a, DB: Database, EXT: GetInspector<DB>>(
     if let Some(i) = table.get_mut(opcode::SELFDESTRUCT as usize) {
         let old = core::mem::replace(i, Box::new(|_, _| ()));
         *i = Box::new(
-            move |interpreter: &mut Interpreter, host: &mut Evm<'a, EXT, DB>| {
+            move |interpreter: &mut Interpreter, host: &mut Evm<'a, T, EXT, DB>| {
                 // execute selfdestruct
                 old(interpreter, host);
                 // check if selfdestruct was successful and if journal entry is made.
@@ -234,14 +235,15 @@ pub fn inspector_handle_register<'a, DB: Database, EXT: GetInspector<DB>>(
 /// Outer closure that calls Inspector for every instruction.
 pub fn inspector_instruction<
     'a,
+    T,
     INSP: GetInspector<DB>,
     DB: Database,
-    Instruction: Fn(&mut Interpreter, &mut Evm<'a, INSP, DB>) + 'a,
+    Instruction: Fn(&mut Interpreter, &mut Evm<'a, T, INSP, DB>) + 'a,
 >(
     instruction: Instruction,
-) -> BoxedInstruction<'a, Evm<'a, INSP, DB>> {
+) -> BoxedInstruction<'a, Evm<'a, T, INSP, DB>> {
     Box::new(
-        move |interpreter: &mut Interpreter, host: &mut Evm<'a, INSP, DB>| {
+        move |interpreter: &mut Interpreter, host: &mut Evm<'a, T, INSP, DB>| {
             // SAFETY: as the PC was already incremented we need to subtract 1 to preserve the
             // old Inspector behavior.
             interpreter.instruction_pointer = unsafe { interpreter.instruction_pointer.sub(1) };
@@ -270,9 +272,11 @@ pub fn inspector_instruction<
 
 #[cfg(test)]
 mod tests {
+    use core::convert::Infallible;
+
     use super::*;
     use crate::{
-        db::EmptyDB,
+        db::{EmptyDB, EmptyDBTyped},
         inspectors::NoOpInspector,
         interpreter::{opcode::*, CallInputs, CallOutcome, CreateInputs, CreateOutcome},
         primitives::BerlinSpec,
@@ -282,10 +286,11 @@ mod tests {
     // Test that this pattern builds.
     #[test]
     fn test_make_boxed_instruction_table() {
-        type MyEvm<'a> = Evm<'a, NoOpInspector, EmptyDB>;
-        let table: InstructionTable<MyEvm<'_>> = make_instruction_table::<MyEvm<'_>, BerlinSpec>();
+        type MyEvm<'a> = Evm<'a, u32, NoOpInspector, EmptyDB>;
+        let table: InstructionTable<MyEvm<'_>> =
+            make_instruction_table::<u32, MyEvm<'_>, BerlinSpec>();
         let _boxed_table: BoxedInstructionTable<'_, MyEvm<'_>> =
-            make_boxed_instruction_table::<'_, MyEvm<'_>, BerlinSpec, _>(
+            make_boxed_instruction_table::<'_, u32, MyEvm<'_>, BerlinSpec, _>(
                 table,
                 inspector_instruction,
             );
@@ -389,18 +394,19 @@ mod tests {
         ]);
         let bytecode = Bytecode::new_raw(contract_data);
 
-        let mut evm: Evm<'_, StackInspector, BenchmarkDB> = Evm::builder()
-            .with_db(BenchmarkDB::new_bytecode(bytecode.clone()))
-            .with_external_context(StackInspector::default())
-            .modify_tx_env(|tx| {
-                tx.clear();
-                tx.caller = address!("1000000000000000000000000000000000000000");
-                tx.transact_to =
-                    TransactTo::Call(address!("0000000000000000000000000000000000000000"));
-                tx.gas_limit = 21100;
-            })
-            .append_handler_register(inspector_handle_register)
-            .build();
+        let mut evm: Evm<'_, u32, StackInspector, BenchmarkDB> =
+            Evm::<u32, (), EmptyDBTyped<Infallible>>::builder()
+                .with_db(BenchmarkDB::new_bytecode(bytecode.clone()))
+                .with_external_context(StackInspector::default())
+                .modify_tx_env(|tx| {
+                    tx.clear();
+                    tx.caller = address!("1000000000000000000000000000000000000000");
+                    tx.transact_to =
+                        TransactTo::Call(address!("0000000000000000000000000000000000000000"));
+                    tx.gas_limit = 21100;
+                })
+                .append_handler_register(inspector_handle_register)
+                .build();
 
         // run evm.
         evm.transact().unwrap();
@@ -417,7 +423,7 @@ mod tests {
     #[test]
     fn test_inspector_reg() {
         let mut noop = NoOpInspector;
-        let _evm = Evm::builder()
+        let _evm = Evm::<u32, (), EmptyDBTyped<Infallible>>::builder()
             .with_external_context(&mut noop)
             .append_handler_register(inspector_handle_register)
             .build();

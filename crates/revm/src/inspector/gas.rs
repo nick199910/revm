@@ -89,9 +89,12 @@ impl<DB: Database> Inspector<DB> for GasInspector {
 #[cfg(test)]
 mod tests {
 
+    use core::convert::Infallible;
+
     use revm_interpreter::CallOutcome;
     use revm_interpreter::CreateOutcome;
 
+    use crate::db::EmptyDBTyped;
     use crate::{
         inspectors::GasInspector,
         interpreter::{CallInputs, CreateInputs, Interpreter},
@@ -189,18 +192,19 @@ mod tests {
         ]);
         let bytecode = Bytecode::new_raw(contract_data);
 
-        let mut evm: Evm<'_, StackInspector, BenchmarkDB> = Evm::builder()
-            .with_db(BenchmarkDB::new_bytecode(bytecode.clone()))
-            .with_external_context(StackInspector::default())
-            .modify_tx_env(|tx| {
-                tx.clear();
-                tx.caller = address!("1000000000000000000000000000000000000000");
-                tx.transact_to =
-                    TransactTo::Call(address!("0000000000000000000000000000000000000000"));
-                tx.gas_limit = 21100;
-            })
-            .append_handler_register(inspector_handle_register)
-            .build();
+        let mut evm: Evm<'_, u32, StackInspector, BenchmarkDB> =
+            Evm::<u32, (), EmptyDBTyped<Infallible>>::builder()
+                .with_db(BenchmarkDB::new_bytecode(bytecode.clone()))
+                .with_external_context(StackInspector::default())
+                .modify_tx_env(|tx| {
+                    tx.clear();
+                    tx.caller = address!("1000000000000000000000000000000000000000");
+                    tx.transact_to =
+                        TransactTo::Call(address!("0000000000000000000000000000000000000000"));
+                    tx.gas_limit = 21100;
+                })
+                .append_handler_register(inspector_handle_register)
+                .build();
 
         // run evm.
         evm.transact().unwrap();

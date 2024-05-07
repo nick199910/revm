@@ -20,13 +20,13 @@ use self::register::{HandleRegister, HandleRegisterBox};
 /// Handler acts as a proxy and allow to define different behavior for different
 /// sections of the code. This allows nice integration of different chains or
 /// to disable some mainnet behavior.
-pub struct Handler<'a, H: Host + 'a, EXT, DB: Database> {
+pub struct Handler<'a, T, H: Host<T> + 'a, EXT, DB: Database> {
     /// Handler configuration.
     pub cfg: HandlerCfg,
     /// Instruction table type.
-    pub instruction_table: Option<InstructionTables<'a, H>>,
+    pub instruction_table: Option<InstructionTables<'a, T, H>>,
     /// Registers that will be called on initialization.
-    pub registers: Vec<HandleRegisters<EXT, DB>>,
+    pub registers: Vec<HandleRegisters<T, EXT, DB>>,
     /// Validity handles.
     pub validation: ValidationHandler<'a, EXT, DB>,
     /// Pre execution handle.
@@ -37,7 +37,7 @@ pub struct Handler<'a, H: Host + 'a, EXT, DB: Database> {
     pub execution: ExecutionHandler<'a, EXT, DB>,
 }
 
-impl<'a, EXT, DB: Database> EvmHandler<'a, EXT, DB> {
+impl<'a, T, EXT, DB: Database> EvmHandler<'a, T, EXT, DB> {
     /// Created new Handler with given configuration.
     ///
     /// Internally it calls `mainnet_with_spec` with the given spec id.
@@ -103,12 +103,14 @@ impl<'a, EXT, DB: Database> EvmHandler<'a, EXT, DB> {
     }
 
     /// Take instruction table.
-    pub fn take_instruction_table(&mut self) -> Option<InstructionTables<'a, Evm<'a, EXT, DB>>> {
+    pub fn take_instruction_table(
+        &mut self,
+    ) -> Option<InstructionTables<'a, T, Evm<'a, T, EXT, DB>>> {
         self.instruction_table.take()
     }
 
     /// Set instruction table.
-    pub fn set_instruction_table(&mut self, table: InstructionTables<'a, Evm<'a, EXT, DB>>) {
+    pub fn set_instruction_table(&mut self, table: InstructionTables<'a, T, Evm<'a, T, EXT, DB>>) {
         self.instruction_table = Some(table);
     }
 
@@ -133,25 +135,25 @@ impl<'a, EXT, DB: Database> EvmHandler<'a, EXT, DB> {
     }
 
     /// Append handle register.
-    pub fn append_handler_register(&mut self, register: HandleRegisters<EXT, DB>) {
+    pub fn append_handler_register(&mut self, register: HandleRegisters<T, EXT, DB>) {
         register.register(self);
         self.registers.push(register);
     }
 
     /// Append plain handle register.
-    pub fn append_handler_register_plain(&mut self, register: HandleRegister<EXT, DB>) {
+    pub fn append_handler_register_plain(&mut self, register: HandleRegister<T, EXT, DB>) {
         register(self);
         self.registers.push(HandleRegisters::Plain(register));
     }
 
     /// Append boxed handle register.
-    pub fn append_handler_register_box(&mut self, register: HandleRegisterBox<EXT, DB>) {
+    pub fn append_handler_register_box(&mut self, register: HandleRegisterBox<T, EXT, DB>) {
         register(self);
         self.registers.push(HandleRegisters::Box(register));
     }
 
     /// Pop last handle register and reapply all registers that are left.
-    pub fn pop_handle_register(&mut self) -> Option<HandleRegisters<EXT, DB>> {
+    pub fn pop_handle_register(&mut self) -> Option<HandleRegisters<T, EXT, DB>> {
         let out = self.registers.pop();
         if out.is_some() {
             let registers = core::mem::take(&mut self.registers);
@@ -166,7 +168,7 @@ impl<'a, EXT, DB: Database> EvmHandler<'a, EXT, DB> {
     }
 
     /// Creates the Handler with Generic Spec.
-    pub fn create_handle_generic<SPEC: Spec>(&mut self) -> EvmHandler<'a, EXT, DB> {
+    pub fn create_handle_generic<SPEC: Spec>(&mut self) -> EvmHandler<'a, T, EXT, DB> {
         let registers = core::mem::take(&mut self.registers);
         let mut base_handler = Handler::mainnet::<SPEC>();
         // apply all registers to default handeler and raw mainnet instruction table.
@@ -206,7 +208,7 @@ mod test {
 
     #[test]
     fn test_handler_register_pop() {
-        let register = |inner: &Rc<RefCell<i32>>| -> HandleRegisterBox<(), EmptyDB> {
+        let register = |inner: &Rc<RefCell<i32>>| -> HandleRegisterBox<(), u32, EmptyDB> {
             let inner = inner.clone();
             Box::new(move |h| {
                 *inner.borrow_mut() += 1;
@@ -214,7 +216,7 @@ mod test {
             })
         };
 
-        let mut handler = EvmHandler::<(), EmptyDB>::new(HandlerCfg::new(SpecId::LATEST));
+        let mut handler = EvmHandler::<(), u32, EmptyDB>::new(HandlerCfg::new(SpecId::LATEST));
         let test = Rc::new(RefCell::new(0));
 
         handler.append_handler_register_box(register(&test));

@@ -193,7 +193,7 @@ mod test {
 
     #[test]
     fn rjump() {
-        let table = make_instruction_table::<_, PragueSpec>();
+        let table = make_instruction_table::<_, u32, PragueSpec>();
         let mut host = DummyHost::default();
         let mut interp = Interpreter::new_bytecode(Bytecode::LegacyRaw(Bytes::from([
             RJUMP, 0x00, 0x02, STOP, STOP,

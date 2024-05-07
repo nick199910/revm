@@ -14,23 +14,23 @@ use crate::{
     Context, ContextWithHandlerCfg, Frame, FrameOrResult, FrameResult,
 };
 use core::fmt;
-use revm_interpreter::{CallInputs, CreateInputs};
-use std::vec::Vec;
+use revm_interpreter::{instructions::control::revert, CallInputs, CreateInputs};
+use std::{sync::Arc, vec::Vec};
 
 /// EVM call stack limit.
 pub const CALL_STACK_LIMIT: u64 = 1024;
 
 /// EVM instance containing both internal EVM context and external context
 /// and the handler that dictates the logic of EVM (or hardfork specification).
-pub struct Evm<'a, EXT, DB: Database> {
+pub struct Evm<'a, T, EXT, DB: Database> {
     /// Context of execution, containing both EVM and external context.
     pub context: Context<EXT, DB>,
     /// Handler is a component of the of EVM that contains all the logic. Handler contains specification id
     /// and it different depending on the specified fork.
-    pub handler: Handler<'a, Self, EXT, DB>,
+    pub handler: Handler<'a, T, Self, EXT, DB>,
 }
 
-impl<EXT, DB> fmt::Debug for Evm<'_, EXT, DB>
+impl<T, EXT, DB> fmt::Debug for Evm<'_, T, EXT, DB>
 where
     EXT: fmt::Debug,
     DB: Database + fmt::Debug,
@@ -43,7 +43,7 @@ where
     }
 }
 
-impl<EXT, DB: Database + DatabaseCommit> Evm<'_, EXT, DB> {
+impl<T, EXT, DB: Database + DatabaseCommit> Evm<'_, T, EXT, DB> {
     /// Commit the changes to the database.
     pub fn transact_commit(&mut self) -> Result<ExecutionResult, EVMError<DB::Error>> {
         let ResultAndState { result, state } = self.transact()?;
@@ -52,31 +52,31 @@ impl<EXT, DB: Database + DatabaseCommit> Evm<'_, EXT, DB> {
     }
 }
 
-impl<'a> Evm<'a, (), EmptyDB> {
+impl<'a, T> Evm<'a, T, (), EmptyDB> {
     /// Returns evm builder with empty database and empty external context.
-    pub fn builder() -> EvmBuilder<'a, SetGenericStage, (), EmptyDB> {
+    pub fn builder() -> EvmBuilder<'a, u32, SetGenericStage, (), EmptyDB> {
         EvmBuilder::default()
     }
 }
 
-impl<'a, EXT, DB: Database> Evm<'a, EXT, DB> {
+impl<'a, T, EXT, DB: Database> Evm<'a, T, EXT, DB> {
     /// Create new EVM.
     pub fn new(
         mut context: Context<EXT, DB>,
-        handler: Handler<'a, Self, EXT, DB>,
-    ) -> Evm<'a, EXT, DB> {
+        handler: Handler<'a, T, Self, EXT, DB>,
+    ) -> Evm<'a, T, EXT, DB> {
         context.evm.journaled_state.set_spec_id(handler.cfg.spec_id);
         Evm { context, handler }
     }
 
     /// Allow for evm setting to be modified by feeding current evm
     /// into the builder for modifications.
-    pub fn modify(self) -> EvmBuilder<'a, HandlerStage, EXT, DB> {
+    pub fn modify(self) -> EvmBuilder<'a, T, HandlerStage, EXT, DB> {
         EvmBuilder::new(self)
     }
 }
 
-impl<EXT, DB: Database> Evm<'_, EXT, DB> {
+impl<T, EXT, DB: Database> Evm<'_, T, EXT, DB> {
     /// Returns specification (hardfork) that the EVM is instanced with.
     ///
     /// SpecId depends on the handler.
@@ -227,6 +227,7 @@ impl<EXT, DB: Database> Evm<'_, EXT, DB> {
         let frame_result = match &table {
             InstructionTables::Plain(table) => self.run_the_loop(table, first_frame),
             InstructionTables::Boxed(table) => self.run_the_loop(table, first_frame),
+            InstructionTables::_Marker(_) => todo!(),
         };
 
         // return back instruction table
@@ -392,7 +393,7 @@ impl<EXT, DB: Database> Evm<'_, EXT, DB> {
     }
 }
 
-impl<EXT, DB: Database> Host for Evm<'_, EXT, DB> {
+impl<T, EXT, DB: Database> Host<T> for Evm<'_, T, EXT, DB> {
     fn env(&self) -> &Env {
         &self.context.evm.env
     }
@@ -425,7 +426,7 @@ impl<EXT, DB: Database> Host for Evm<'_, EXT, DB> {
             .ok()
     }
 
-    fn code(&mut self, address: Address) -> Option<(Bytecode, bool)> {
+    fn code(&mut self, address: Address) -> Option<(Arc<Bytecode>, bool)> {
         self.context
             .evm
             .code(address)

@@ -14,7 +14,7 @@ use crate::{
     },
     FrameOrResult, JournalCheckpoint, CALL_STACK_LIMIT,
 };
-use std::boxed::Box;
+use std::{boxed::Box, sync::Arc};
 
 /// EVM contexts contains data that EVM needs for execution.
 #[derive(Debug)]
@@ -161,10 +161,10 @@ impl<DB: Database> InnerEvmContext<DB> {
 
     /// Return account code and if address is cold loaded.
     #[inline]
-    pub fn code(&mut self, address: Address) -> Result<(Bytecode, bool), EVMError<DB::Error>> {
+    pub fn code(&mut self, address: Address) -> Result<(Arc<Bytecode>, bool), EVMError<DB::Error>> {
         self.journaled_state
             .load_code(address, &mut self.db)
-            .map(|(a, is_cold)| (a.info.code.clone().unwrap(), is_cold))
+            .map(|(a, is_cold)| (Arc::new(a.info.code.clone().unwrap()), is_cold))
     }
 
     /// Get code hash of address.

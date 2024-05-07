@@ -15,7 +15,7 @@ use crate::{
     FunctionStack, Gas, Host, InstructionResult, InterpreterAction,
 };
 use core::cmp::min;
-use revm_primitives::{Bytecode, Eof, Spec, MAX_INSTRUCTION_SIZE, U256};
+use revm_primitives::{Bytecode, Eof, U256};
 use std::borrow::ToOwned;
 
 /// EVM bytecode interpreter.
@@ -439,12 +439,12 @@ mod tests {
 
         let mut host = crate::DummyHost::default();
         let table: InstructionTable<DummyHost> =
-            crate::opcode::make_instruction_table::<DummyHost, CancunSpec>();
+            crate::opcode::make_instruction_table::<u32, DummyHost, CancunSpec>();
         let _ = interp.run(EMPTY_SHARED_MEMORY, &table, &mut host);
 
         let host: &mut dyn Host<u32> = &mut host as &mut dyn Host<u32>;
         let table: InstructionTable<dyn Host<u32>> =
-            crate::opcode::make_instruction_table::<dyn Host<u32>, CancunSpec>();
+            crate::opcode::make_instruction_table::<u32, dyn Host<u32>, CancunSpec>();
         let _ = interp.run(EMPTY_SHARED_MEMORY, &table, host);
     }
 }
