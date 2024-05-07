@@ -54,7 +54,7 @@ pub trait Inspector<T, DB: Database> {
         &mut self,
         interp: &mut Interpreter,
         context: &mut EvmContext<DB>,
-        additional_data: &mut T,
+        _additional_data: &mut T,
     ) {
         let _ = interp;
         let _ = context;
@@ -69,7 +69,7 @@ pub trait Inspector<T, DB: Database> {
         &mut self,
         interp: &mut Interpreter,
         context: &mut EvmContext<DB>,
-        additional_data: &mut T,
+        _additional_data: &mut T,
     ) {
         let _ = interp;
         let _ = context;
@@ -90,7 +90,7 @@ pub trait Inspector<T, DB: Database> {
         &mut self,
         context: &mut EvmContext<DB>,
         inputs: &mut CallInputs,
-        additional_data: &mut T,
+        _additional_data: &mut T,
     ) -> Option<CallOutcome> {
         let _ = context;
         let _ = inputs;
@@ -108,7 +108,7 @@ pub trait Inspector<T, DB: Database> {
         context: &mut EvmContext<DB>,
         inputs: &CallInputs,
         outcome: CallOutcome,
-        additional_data: &mut T,
+        _additional_data: &mut T,
     ) -> CallOutcome {
         let _ = context;
         let _ = inputs;
@@ -125,7 +125,7 @@ pub trait Inspector<T, DB: Database> {
         &mut self,
         context: &mut EvmContext<DB>,
         inputs: &mut CreateInputs,
-        additional_data: &mut T,
+        _additional_data: &mut T,
     ) -> Option<CreateOutcome> {
         let _ = context;
         let _ = inputs;
@@ -142,7 +142,7 @@ pub trait Inspector<T, DB: Database> {
         context: &mut EvmContext<DB>,
         inputs: &CreateInputs,
         outcome: CreateOutcome,
-        additional_data: &mut T,
+        _additional_data: &mut T,
     ) -> CreateOutcome {
         let _ = context;
         let _ = inputs;

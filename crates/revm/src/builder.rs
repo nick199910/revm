@@ -6,7 +6,7 @@ use crate::{
     },
     Context, ContextWithHandlerCfg, Evm, Handler,
 };
-use core::marker::PhantomData;
+use core::{any::Any, marker::PhantomData};
 use std::boxed::Box;
 
 /// Evm Builder allows building or modifying EVM.
@@ -298,7 +298,8 @@ impl<'a, T, BuilderStage, EXT, DB: Database> EvmBuilder<'a, T, BuilderStage, EXT
     pub fn append_handler_register(
         mut self,
         handle_register: register::HandleRegister<T, EXT, DB>,
-    ) -> EvmBuilder<'a, T, HandlerStage, EXT, DB> {
+    ) -> EvmBuilder<'a, T, HandlerStage, EXT, DB>
+    where T: From<Box<dyn Any>> {
         self.handler
             .append_handler_register(register::HandleRegisters::Plain(handle_register));
         EvmBuilder {
@@ -434,7 +435,7 @@ mod test {
         },
         Context, ContextPrecompile, ContextStatefulPrecompile, Evm, InMemoryDB, InnerEvmContext,
     };
-    use core::convert::Infallible;
+    use core::{any::Any, convert::Infallible};
     use revm_interpreter::{Host, Interpreter};
     use std::{cell::RefCell, rc::Rc, sync::Arc};
 
@@ -498,7 +499,7 @@ mod test {
         const CUSTOM_INSTRUCTION_COST: u64 = 133;
         const INITIAL_TX_GAS: u64 = 21000;
         const EXPECTED_RESULT_GAS: u64 = INITIAL_TX_GAS + CUSTOM_INSTRUCTION_COST;
-        fn custom_instruction(interp: &mut Interpreter, _host: &mut impl Host<u32>) {
+        fn custom_instruction(interp: &mut Interpreter, _host: &mut impl Host<Box<dyn Any>>) {
             // just spend some gas
             interp.gas.record_cost(CUSTOM_INSTRUCTION_COST);
         }
@@ -507,7 +508,8 @@ mod test {
         let code_hash = code.hash_slow();
         let to_addr = address!("ffffffffffffffffffffffffffffffffffffffff");
 
-        let mut evm = Evm::<u32, (), EmptyDBTyped<Infallible>>::builder()
+        // let a: Box<dyn Any>= Box::<_>::new(custom_instruction);
+        let mut evm = Evm::<Box<dyn Any>, (), EmptyDBTyped<Infallible>>::builder()
             .with_db(InMemoryDB::default())
             .modify_db(|db| {
                 db.insert_account_info(to_addr, AccountInfo::new(U256::ZERO, 0, code_hash, code))
@@ -569,14 +571,14 @@ mod test {
             .build();
 
         // with inspector handle
-        Evm::<u32, (), EmptyDBTyped<Infallible>>::builder()
+        Evm::<Box<dyn Any>, (), EmptyDBTyped<Infallible>>::builder()
             .with_empty_db()
             .with_external_context(NoOpInspector)
             .append_handler_register(inspector_handle_register)
             .build();
 
         // create the builder
-        let evm = Evm::<u32, (), EmptyDBTyped<Infallible>>::builder()
+        let evm = Evm::<Box<dyn Any>, (), EmptyDBTyped<Infallible>>::builder()
             .with_db(EmptyDB::default())
             .with_external_context(NoOpInspector)
             .append_handler_register(inspector_handle_register)
@@ -618,7 +620,7 @@ mod test {
             }
         }
 
-        let mut evm = Evm::<u32, (), EmptyDBTyped<Infallible>>::builder()
+        let mut evm = Evm::<Box<dyn Any>, (), EmptyDBTyped<Infallible>>::builder()
             .with_empty_db()
             .with_spec_id(SpecId::HOMESTEAD)
             .append_handler_register(|handler| {

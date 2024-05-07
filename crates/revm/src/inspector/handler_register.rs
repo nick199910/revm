@@ -5,7 +5,7 @@ use crate::{
     primitives::EVMError,
     Evm, FrameOrResult, FrameResult, Inspector, JournalEntry,
 };
-use core::cell::RefCell;
+use core::{any::Any, cell::RefCell};
 use revm_interpreter::opcode::InstructionTables;
 use std::{boxed::Box, rc::Rc, sync::Arc, vec::Vec};
 
@@ -22,6 +22,7 @@ impl<T, DB: Database, INSP: Inspector<T, DB>> GetInspector<T, DB> for INSP {
     }
 }
 
+
 /// Register Inspector handles that interact with Inspector instance.
 ///
 ///
@@ -36,7 +37,8 @@ impl<T, DB: Database, INSP: Inspector<T, DB>> GetInspector<T, DB> for INSP {
 /// `log` and `selfdestruct` calls.
 pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<T, DB>>(
     handler: &mut EvmHandler<'a, T, EXT, DB>,
-) {
+) where T: From<Box<dyn Any>>
+ {
     // Every instruction inside flat table that is going to be wrapped by inspector calls.
     let table = handler
         .take_instruction_table()
@@ -142,7 +144,7 @@ pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<T, DB>>(
         move |ctx, mut inputs| -> Result<FrameOrResult, EVMError<DB::Error>> {
             let inspector = ctx.external.get_inspector();
             // call inspector create to change input or return outcome.
-            if let Some(outcome) = inspector.create(&mut ctx.evm, &mut inputs, &mut u32::from_be(1))
+            if let Some(outcome) = inspector.create(&mut ctx.evm, &mut inputs, &mut T::from(Box::new("a")))
             {
                 create_input_stack_inner.borrow_mut().push(inputs.clone());
                 return Ok(FrameOrResult::Result(FrameResult::Create(outcome)));
@@ -168,7 +170,7 @@ pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<T, DB>>(
             let outcome = ctx
                 .external
                 .get_inspector()
-                .call(&mut ctx.evm, &mut inputs, &mut T);
+                .call(&mut ctx.evm, &mut inputs, &mut T::from(Box::new(1)));
             call_input_stack_inner.borrow_mut().push(inputs.clone());
             if let Some(outcome) = outcome {
                 return Ok(FrameOrResult::Result(FrameResult::Call(outcome)));
@@ -196,7 +198,7 @@ pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<T, DB>>(
                 &mut ctx.evm,
                 &call_inputs,
                 outcome,
-                &mut "test",
+                &mut T::from(Box::new("test")),
             );
             old_handle(ctx, frame, shared_memory, outcome)
         });
@@ -210,7 +212,7 @@ pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<T, DB>>(
             &mut ctx.evm,
             &create_inputs,
             outcome,
-            &mut "test",
+            &mut T::from(Box::new("test")),
         );
         old_handle(ctx, frame, outcome)
     });
@@ -225,7 +227,7 @@ pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<T, DB>>(
             FrameResult::Call(outcome) => {
                 let call_inputs = call_input_stack.borrow_mut().pop().unwrap();
                 *outcome =
-                    inspector.call_end(&mut ctx.evm, &call_inputs, outcome.clone(), &mut "test");
+                    inspector.call_end(&mut ctx.evm, &call_inputs, outcome.clone(), &mut T::from(Box::new("test")));
             }
             FrameResult::Create(outcome) => {
                 let create_inputs = create_input_stack.borrow_mut().pop().unwrap();
@@ -233,7 +235,7 @@ pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<T, DB>>(
                     &mut ctx.evm,
                     &create_inputs,
                     outcome.clone(),
-                    &mut "test",
+                    &mut T::from(Box::new("test")),
                 );
             }
             FrameResult::EOFCreate(outcome) => {
@@ -255,7 +257,9 @@ pub fn inspector_instruction<
     Instruction: Fn(&mut Interpreter, &mut Evm<'a, T, INSP, DB>) + 'a,
 >(
     instruction: Instruction,
-) -> BoxedInstruction<'a, Evm<'a, T, INSP, DB>> {
+) -> BoxedInstruction<'a, Evm<'a, T, INSP, DB>> 
+where T: From<Box<dyn Any>>
+{
     Box::new(
         move |interpreter: &mut Interpreter, host: &mut Evm<'a, T, INSP, DB>| {
             // SAFETY: as the PC was already incremented we need to subtract 1 to preserve the
@@ -265,7 +269,7 @@ pub fn inspector_instruction<
             host.context
                 .external
                 .get_inspector()
-                .step(interpreter, &mut host.context.evm, &mut T);
+                .step(interpreter, &mut host.context.evm, &mut T::from(Box::new(1)));
             if interpreter.instruction_result != InstructionResult::Continue {
                 return;
             }
@@ -279,7 +283,7 @@ pub fn inspector_instruction<
             host.context.external.get_inspector().step_end(
                 interpreter,
                 &mut host.context.evm,
-                &mut u32::from_be(1),
+                &mut T::from(Box::new(1)),
             );
         },
     )
@@ -301,11 +305,11 @@ mod tests {
     // Test that this pattern builds.
     #[test]
     fn test_make_boxed_instruction_table() {
-        type MyEvm<'a> = Evm<'a, u32, NoOpInspector, EmptyDB>;
+        type MyEvm<'a> = Evm<'a, Box<dyn Any>, NoOpInspector, EmptyDB>;
         let table: InstructionTable<MyEvm<'_>> =
-            make_instruction_table::<u32, MyEvm<'_>, BerlinSpec>();
+            make_instruction_table::<Box<dyn Any>, MyEvm<'_>, BerlinSpec>();
         let _boxed_table: BoxedInstructionTable<'_, MyEvm<'_>> =
-            make_boxed_instruction_table::<'_, u32, MyEvm<'_>, BerlinSpec, _>(
+            make_boxed_instruction_table::<'_, Box<dyn Any>, MyEvm<'_>, BerlinSpec, _>(
                 table,
                 inspector_instruction,
             );
@@ -341,7 +345,7 @@ mod tests {
             self.step_end += 1;
         }
 
-        fn call(&mut self, context: &mut EvmContext<DB>, _: &mut T) -> Option<CallOutcome> {
+        fn call(&mut self, context: &mut EvmContext<DB>, _call: &mut CallInputs, _additional_data: &mut T) -> Option<CallOutcome> {
             if self.call {
                 unreachable!("call should not be called twice")
             }
@@ -413,8 +417,8 @@ mod tests {
         ]);
         let bytecode = Bytecode::new_raw(contract_data);
 
-        let mut evm: Evm<'_, u32, StackInspector, BenchmarkDB> =
-            Evm::<u32, (), EmptyDBTyped<Infallible>>::builder()
+        let mut evm: Evm<'_, Box<dyn Any>, StackInspector, BenchmarkDB> =
+            Evm::<Box<dyn Any>, (), EmptyDBTyped<Infallible>>::builder()
                 .with_db(BenchmarkDB::new_bytecode(bytecode.clone()))
                 .with_external_context(StackInspector::default())
                 .modify_tx_env(|tx| {
@@ -442,7 +446,7 @@ mod tests {
     #[test]
     fn test_inspector_reg() {
         let mut noop = NoOpInspector;
-        let _evm = Evm::<u32, (), EmptyDBTyped<Infallible>>::builder()
+        let _evm = Evm::<Box<dyn Any>, (), EmptyDBTyped<Infallible>>::builder()
             .with_external_context(&mut noop)
             .append_handler_register(inspector_handle_register)
             .build();
