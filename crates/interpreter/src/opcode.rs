@@ -3,7 +3,7 @@
 pub mod eof_printer;
 
 use crate::{instructions::*, primitives::Spec, Host, Interpreter};
-use core::{any::Any, fmt, marker::PhantomData};
+use core::{fmt, marker::PhantomData};
 use std::boxed::Box;
 
 /// EVM opcode function signature.
@@ -126,7 +126,6 @@ where
     H: Host<T>,
     SPEC: Spec + 'a,
     FN: FnMut(Instruction<H>) -> BoxedInstruction<'a, H>,
-    T: From<Box<dyn Any>>,
 {
     core::array::from_fn(|i| outer(table[i]))
 }
@@ -382,8 +381,9 @@ pub const fn stack_io<const I: u8, const O: u8>(mut opcode: OpCodeInfo) -> OpCod
 // 2. add its gas info in the `opcode_gas_info` function below
 // 3. implement the opcode in the corresponding module;
 //    the function signature must be the exact same as the others
+
 opcodes! {
-    0x00 => STOP => control::stop => stack_io<0,0>, terminating;
+    0x00 => STOP => control::stop => stack_io<0, 0>, terminating;
 
     0x01 => ADD        => arithmetic::add            => stack_io<2, 1>;
     0x02 => MUL        => arithmetic::mul            => stack_io<2, 1>;
@@ -630,7 +630,7 @@ opcodes! {
     0xEE => RETURNCONTRACT  => contract::return_contract::<T, H> => stack_io<2, 0>, imm_size<1>, terminating;
     // 0xEF
     0xF0 => CREATE       => contract::create::<false, T, H, SPEC> => stack_io<3, 1>, not_eof;
-    0xF1 => CALL         => contract::call::<T,H, SPEC>          => stack_io<7, 1>, not_eof;
+    0xF1 => CALL         => contract::call::<T, H, SPEC>          => stack_io<7, 1>, not_eof;
     0xF2 => CALLCODE     => contract::call_code::<T,H, SPEC>     => stack_io<7, 1>, not_eof;
     0xF3 => RETURN       => control::ret                       => stack_io<2, 0>, terminating;
     0xF4 => DELEGATECALL => contract::delegate_call::<T,H, SPEC> => stack_io<6, 1>, not_eof;

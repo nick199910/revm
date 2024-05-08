@@ -381,6 +381,7 @@ pub fn extscall<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, host: &mu
 pub fn create<const IS_CREATE2: bool, T, H: Host<T> + ?Sized, SPEC: Spec>(
     interpreter: &mut Interpreter,
     host: &mut H,
+    additional_data: &mut T,
 ) {
     require_non_staticcall!(interpreter);
 
@@ -448,7 +449,11 @@ pub fn create<const IS_CREATE2: bool, T, H: Host<T> + ?Sized, SPEC: Spec>(
     interpreter.instruction_result = InstructionResult::CallOrCreate;
 }
 
-pub fn call<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: &mut H) {
+pub fn call<T, H: Host<T> + ?Sized, SPEC: Spec>(
+    interpreter: &mut Interpreter,
+    host: &mut H,
+    additional_data: &mut T,
+) {
     pop!(interpreter, local_gas_limit);
     pop_address!(interpreter, to);
     // max gas limit is not possible in real ethereum situation.
@@ -504,7 +509,11 @@ pub fn call<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, h
     interpreter.instruction_result = InstructionResult::CallOrCreate;
 }
 
-pub fn call_code<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: &mut H) {
+pub fn call_code<T, H: Host<T> + ?Sized, SPEC: Spec>(
+    interpreter: &mut Interpreter,
+    host: &mut H,
+    additional_data: &mut T,
+) {
     pop!(interpreter, local_gas_limit);
     pop_address!(interpreter, to);
     // max gas limit is not possible in real ethereum situation.
@@ -558,6 +567,7 @@ pub fn call_code<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpret
 pub fn delegate_call<T, H: Host<T> + ?Sized, SPEC: Spec>(
     interpreter: &mut Interpreter,
     host: &mut H,
+    additional_data: &mut T,
 ) {
     check!(interpreter, HOMESTEAD);
     pop!(interpreter, local_gas_limit);

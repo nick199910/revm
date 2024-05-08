@@ -1,3 +1,4 @@
+use core::any::Any;
 use revm::{
     db::{CacheDB, EmptyDB, EmptyDBTyped, WrapDatabaseRef},
     handler::register::HandleRegister,
@@ -51,10 +52,11 @@ fn run_transaction_and_commit_with_ext<T, EXT, DB: DatabaseRefDebugError + Datab
 }
 
 fn run_transaction_and_commit(db: &mut CacheDB<EmptyDB>) -> anyhow::Result<()> {
+    trait Test {}
     let ResultAndState { state: changes, .. } = {
         let rdb = &*db;
 
-        let mut evm = Evm::<u32, (), EmptyDBTyped<Infallible>>::builder()
+        let mut evm = Evm::<Box<dyn Any>, (), EmptyDBTyped<Infallible>>::builder()
             .with_ref_db(rdb)
             .with_external_context(NoOpInspector)
             .append_handler_register(inspector_handle_register)
@@ -75,7 +77,7 @@ fn main() -> anyhow::Result<()> {
     let mut tracer = TracerEip3155::new(Box::new(std::io::stdout()));
 
     run_transaction_and_commit_with_ext::<
-        u32,
+        Box<dyn Any>,
         &mut TracerEip3155,
         &mut CacheDB<EmptyDBTyped<Infallible>>,
     >(&mut cache_db, &mut tracer, inspector_handle_register)?;

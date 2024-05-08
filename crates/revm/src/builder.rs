@@ -6,7 +6,7 @@ use crate::{
     },
     Context, ContextWithHandlerCfg, Evm, Handler,
 };
-use core::{any::Any, marker::PhantomData};
+use core::marker::PhantomData;
 use std::boxed::Box;
 
 /// Evm Builder allows building or modifying EVM.
@@ -298,14 +298,12 @@ impl<'a, T, BuilderStage, EXT, DB: Database> EvmBuilder<'a, T, BuilderStage, EXT
     pub fn append_handler_register(
         mut self,
         handle_register: register::HandleRegister<T, EXT, DB>,
-    ) -> EvmBuilder<'a, T, HandlerStage, EXT, DB>
-    where T: From<Box<dyn Any>> {
+    ) -> EvmBuilder<'a, T, HandlerStage, EXT, DB> {
         self.handler
             .append_handler_register(register::HandleRegisters::Plain(handle_register));
         EvmBuilder {
             context: self.context,
             handler: self.handler,
-
             phantom: PhantomData,
         }
     }
