@@ -1,3 +1,4 @@
+use core::str::FromStr;
 use std::sync::Arc;
 
 use super::analysis::to_analysed;

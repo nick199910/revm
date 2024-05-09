@@ -20,7 +20,7 @@ use revm_primitives::{Bytecode, Eof, U256};
 use std::borrow::ToOwned;
 
 /// EVM bytecode interpreter.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Interpreter {
     /// The current instruction pointer.
     pub instruction_pointer: *const u8,

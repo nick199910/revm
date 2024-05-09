@@ -19,7 +19,7 @@ impl FunctionReturnFrame {
 }
 
 /// Function Stack
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FunctionStack {
     pub return_stack: Vec<FunctionReturnFrame>,
