@@ -16,7 +16,7 @@ use crate::{
     FunctionStack, Gas, Host, InstructionResult, InterpreterAction,
 };
 use core::cmp::min;
-use revm_primitives::{Bytecode, Eof, U256};
+use revm_primitives::{Bytecode, Eof, Spec, MAX_INSTRUCTION_SIZE, U256};
 use std::borrow::ToOwned;
 
 /// EVM bytecode interpreter.
@@ -405,6 +405,25 @@ impl Interpreter {
                 gas: self.gas,
             },
         }
+    }
+
+    pub fn run_inspect<T, H: Host<T>, SPEC: Spec>(
+        &mut self,
+        host: &mut H,
+        additional_data: &mut T,
+    ) -> InstructionResult {
+        let instruction_table: [fn(&mut Interpreter, &mut H); 256] =
+            crate::opcode::make_instruction_table::<T, H, SPEC>();
+
+        for _count in 0..MAX_INSTRUCTION_SIZE {
+            if self.instruction_result == InstructionResult::Continue {
+                self.step(&instruction_table, host);
+                // self.step::<T, H, SPEC>(host, additional_data);
+            } else {
+                break;
+            }
+        }
+        self.instruction_result
     }
 }
 
