@@ -30,17 +30,16 @@ impl Contract {
     #[inline]
     pub fn new(
         input: Bytes,
-        bytecode: Bytecode,
+        bytecode: Arc<Bytecode>,
         hash: Option<B256>,
         target_address: Address,
         caller: Address,
         call_value: U256,
     ) -> Self {
         let bytecode = to_analysed(bytecode);
-        let bytecode = Arc::new(bytecode);
         Self {
             input,
-            bytecode,
+            bytecode: Arc::new(bytecode),
             hash,
             target_address,
             caller,
@@ -50,7 +49,7 @@ impl Contract {
 
     /// Creates a new contract from the given [`Env`].
     #[inline]
-    pub fn new_env(env: &Env, bytecode: Bytecode, hash: Option<B256>) -> Self {
+    pub fn new_env(env: &Env, bytecode: Arc<Bytecode>, hash: Option<B256>) -> Self {
         let contract_address = match env.tx.transact_to {
             TransactTo::Call(caller) => caller,
             TransactTo::Create => Address::ZERO,
@@ -69,7 +68,7 @@ impl Contract {
     #[inline]
     pub fn new_with_context(
         input: Bytes,
-        bytecode: Bytecode,
+        bytecode: Arc<Bytecode>,
         hash: Option<B256>,
         call_context: &CallInputs,
     ) -> Self {

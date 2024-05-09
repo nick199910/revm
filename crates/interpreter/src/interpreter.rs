@@ -4,6 +4,7 @@ mod contract;
 pub mod serde;
 mod shared_memory;
 mod stack;
+use std::sync::Arc;
 
 pub use contract::Contract;
 pub use shared_memory::{next_multiple_of_32, SharedMemory, EMPTY_SHARED_MEMORY};
@@ -118,7 +119,7 @@ impl Interpreter {
 
     /// Test related helper
     #[cfg(test)]
-    pub fn new_bytecode(bytecode: Bytecode) -> Self {
+    pub fn new_bytecode(bytecode: Arc<Bytecode>) -> Self {
         Self::new(
             Contract::new(
                 Bytes::new(),

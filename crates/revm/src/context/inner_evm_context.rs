@@ -281,7 +281,7 @@ impl<DB: Database> InnerEvmContext<DB> {
         let contract = Contract::new(
             Bytes::new(),
             // fine to clone as it is Bytes.
-            Bytecode::Eof(inputs.eof_init_code.clone()),
+            Arc::new(Bytecode::Eof(inputs.eof_init_code.clone())),
             None,
             inputs.created_address,
             inputs.caller,
@@ -404,7 +404,7 @@ impl<DB: Database> InnerEvmContext<DB> {
 
         let contract = Contract::new(
             Bytes::new(),
-            bytecode,
+            Arc::new(bytecode),
             Some(init_code_hash),
             created_address,
             inputs.caller,
@@ -493,9 +493,9 @@ impl<DB: Database> InnerEvmContext<DB> {
         // Do analysis of bytecode straight away.
         let bytecode = match self.env.cfg.perf_analyse_created_bytecodes {
             AnalysisKind::Raw => Bytecode::new_raw(interpreter_result.output.clone()),
-            AnalysisKind::Analyse => {
-                to_analysed(Bytecode::new_raw(interpreter_result.output.clone()))
-            }
+            AnalysisKind::Analyse => to_analysed(Arc::new(Bytecode::new_raw(
+                interpreter_result.output.clone(),
+            ))),
         };
 
         // set code

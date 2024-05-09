@@ -1,6 +1,7 @@
 use crate::{Address, Bytecode, HashMap, B256, KECCAK_EMPTY, U256};
 use bitflags::bitflags;
 use core::hash::{Hash, Hasher};
+use std::sync::Arc;
 
 /// EVM State is a mapping from addresses to accounts.
 pub type State = HashMap<Address, Account>;

@@ -21,7 +21,8 @@ const EOF_NON_RETURNING_FUNCTION: u8 = 0x80;
 ///
 /// If the bytecode is already analyzed, it is returned as-is.
 #[inline]
-pub fn to_analysed(bytecode: Bytecode) -> Bytecode {
+pub fn to_analysed(bytecode: Arc<Bytecode>) -> Bytecode {
+    let bytecode = Arc::as_ref(&bytecode);
     let (bytes, len) = match bytecode {
         Bytecode::LegacyRaw(bytecode) => {
             let len = bytecode.len();
@@ -30,7 +31,7 @@ pub fn to_analysed(bytecode: Bytecode) -> Bytecode {
             padded_bytecode.resize(len + 33, 0);
             (Bytes::from(padded_bytecode), len)
         }
-        n => return n,
+        n => return n.clone(),
     };
     let jump_table = analyze(bytes.as_ref());
 

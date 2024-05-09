@@ -8,7 +8,7 @@ use revm::{
     Evm,
 };
 use revm_interpreter::{opcode::make_instruction_table, SharedMemory, EMPTY_SHARED_MEMORY};
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 fn analysis(c: &mut Criterion) {
     let evm = Evm::builder()
@@ -42,7 +42,7 @@ fn analysis(c: &mut Criterion) {
         .build();
     bench_transact(&mut g, &mut evm);
 
-    let analysed = to_analysed(Bytecode::new_raw(contract_data));
+    let analysed = to_analysed(Arc::new(Bytecode::new_raw(contract_data)));
     let mut evm = evm
         .modify()
         .reset_handler_with_db(BenchmarkDB::new_bytecode(analysed))
@@ -105,7 +105,7 @@ fn bench_eval(g: &mut BenchmarkGroup<'_, WallTime>, evm: &mut Evm<'static, u32, 
     g.bench_function("eval", |b| {
         let contract = Contract {
             input: evm.context.evm.env.tx.data.clone(),
-            bytecode: to_analysed(evm.context.evm.db.0.clone()).into(),
+            bytecode: Arc::new(to_analysed(Arc::new(evm.context.evm.db.0.clone()).into())),
             ..Default::default()
         };
         let mut shared_memory = SharedMemory::new();
@@ -125,7 +125,7 @@ fn bench_eval(g: &mut BenchmarkGroup<'_, WallTime>, evm: &mut Evm<'static, u32, 
 }
 
 fn bytecode(s: &str) -> Bytecode {
-    to_analysed(Bytecode::new_raw(hex::decode(s).unwrap().into()))
+    to_analysed(Arc::new(Bytecode::new_raw(hex::decode(s).unwrap().into())))
 }
 
 #[rustfmt::skip]

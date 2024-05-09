@@ -183,6 +183,8 @@ pub fn unknown<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mu
 
 #[cfg(test)]
 mod test {
+    use std::sync::Arc;
+
     use revm_primitives::{bytes, Bytecode, Eof, PragueSpec};
 
     use super::*;
@@ -195,9 +197,9 @@ mod test {
     fn rjump() {
         let table = make_instruction_table::<u32, dyn Host<u32>, PragueSpec>();
         let mut host = DummyHost::default();
-        let mut interp = Interpreter::new_bytecode(Bytecode::LegacyRaw(Bytes::from([
+        let mut interp = Interpreter::new_bytecode(Arc::new(Bytecode::LegacyRaw(Bytes::from([
             RJUMP, 0x00, 0x02, STOP, STOP,
-        ])));
+        ]))));
         interp.is_eof = true;
         interp.gas = Gas::new(10000);
 
@@ -209,9 +211,9 @@ mod test {
     fn rjumpi() {
         let table = make_instruction_table::<u32, dyn Host<u32>, PragueSpec>();
         let mut host = DummyHost::default();
-        let mut interp = Interpreter::new_bytecode(Bytecode::LegacyRaw(Bytes::from([
+        let mut interp = Interpreter::new_bytecode(Arc::new(Bytecode::LegacyRaw(Bytes::from([
             RJUMPI, 0x00, 0x03, RJUMPI, 0x00, 0x01, STOP, STOP,
-        ])));
+        ]))));
         interp.is_eof = true;
         interp.stack.push(U256::from(1)).unwrap();
         interp.stack.push(U256::from(0)).unwrap();
@@ -229,7 +231,7 @@ mod test {
     fn rjumpv() {
         let table = make_instruction_table::<u32, dyn Host<u32>, PragueSpec>();
         let mut host = DummyHost::default();
-        let mut interp = Interpreter::new_bytecode(Bytecode::LegacyRaw(Bytes::from([
+        let mut interp = Interpreter::new_bytecode(Arc::new(Bytecode::LegacyRaw(Bytes::from([
             RJUMPV,
             0x01, // max index, 0 and 1
             0x00, // first x0001
@@ -243,7 +245,7 @@ mod test {
             0xFF,
             (-12i8) as u8,
             STOP,
-        ])));
+        ]))));
         interp.is_eof = true;
         interp.gas = Gas::new(1000);
 
@@ -297,7 +299,7 @@ mod test {
         eof.header.code_sizes.push(bytes2.len() as u16);
         eof.body.code_section.push(bytes2.clone());
 
-        let mut interp = Interpreter::new_bytecode(Bytecode::Eof(eof));
+        let mut interp = Interpreter::new_bytecode(Arc::new(Bytecode::Eof(eof)));
         interp.gas = Gas::new(10000);
 
         assert_eq!(interp.function_stack.current_code_idx, 0);

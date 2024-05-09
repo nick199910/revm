@@ -86,6 +86,8 @@ pub fn exchange<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &m
 
 #[cfg(test)]
 mod test {
+    use std::sync::Arc;
+
     use super::*;
     use crate::{
         opcode::{make_instruction_table, DUPN, EXCHANGE, SWAPN},
@@ -97,9 +99,9 @@ mod test {
     fn dupn() {
         let table = make_instruction_table::<u32, dyn Host<u32>, PragueSpec>();
         let mut host = DummyHost::default();
-        let mut interp = Interpreter::new_bytecode(Bytecode::LegacyRaw(Bytes::from([
+        let mut interp = Interpreter::new_bytecode(Arc::new(Bytecode::LegacyRaw(Bytes::from([
             DUPN, 0x00, DUPN, 0x01, DUPN, 0x02,
-        ])));
+        ]))));
         interp.is_eof = true;
         interp.gas = Gas::new(10000);
 
@@ -117,8 +119,9 @@ mod test {
     fn swapn() {
         let table = make_instruction_table::<u32, dyn Host<u32>, PragueSpec>();
         let mut host = DummyHost::default();
-        let mut interp =
-            Interpreter::new_bytecode(Bytecode::LegacyRaw(Bytes::from([SWAPN, 0x00, SWAPN, 0x01])));
+        let mut interp = Interpreter::new_bytecode(Arc::new(Bytecode::LegacyRaw(Bytes::from([
+            SWAPN, 0x00, SWAPN, 0x01,
+        ]))));
         interp.is_eof = true;
         interp.gas = Gas::new(10000);
 
@@ -137,9 +140,9 @@ mod test {
     fn exchange() {
         let table = make_instruction_table::<u32, dyn Host<u32>, PragueSpec>();
         let mut host = DummyHost::default();
-        let mut interp = Interpreter::new_bytecode(Bytecode::LegacyRaw(Bytes::from([
+        let mut interp = Interpreter::new_bytecode(Arc::new(Bytecode::LegacyRaw(Bytes::from([
             EXCHANGE, 0x00, EXCHANGE, 0x11,
-        ])));
+        ]))));
         interp.is_eof = true;
         interp.gas = Gas::new(10000);
 

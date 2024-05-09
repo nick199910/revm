@@ -171,6 +171,8 @@ pub fn gas<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H)
 
 #[cfg(test)]
 mod test {
+    use std::sync::Arc;
+
     use super::*;
     use crate::{
         opcode::{make_instruction_table, RETURNDATALOAD},
@@ -183,9 +185,9 @@ mod test {
         let table = make_instruction_table::<u32, dyn Host<u32>, PragueSpec>();
         let mut host = DummyHost::default();
 
-        let mut interp = Interpreter::new_bytecode(Bytecode::LegacyRaw(
+        let mut interp = Interpreter::new_bytecode(Arc::new(Bytecode::LegacyRaw(
             [RETURNDATALOAD, RETURNDATALOAD, RETURNDATALOAD].into(),
-        ));
+        )));
         interp.is_eof = true;
         interp.gas = Gas::new(10000);
 

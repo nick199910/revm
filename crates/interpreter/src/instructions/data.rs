@@ -81,6 +81,8 @@ pub fn data_copy<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &
 
 #[cfg(test)]
 mod test {
+    use std::sync::Arc;
+
     use revm_primitives::{b256, bytes, Bytecode, Bytes, Eof, PragueSpec};
 
     use super::*;
@@ -111,7 +113,7 @@ mod test {
             0x00, 36, DATASIZE,
         ]));
 
-        let mut interp = Interpreter::new_bytecode(eof);
+        let mut interp = Interpreter::new_bytecode(Arc::new(eof));
         interp.gas = Gas::new(10000);
 
         // DATALOAD
@@ -164,7 +166,7 @@ mod test {
         let mut host = DummyHost::default();
         let eof = dummy_eof(Bytes::from([DATACOPY, DATACOPY, DATACOPY, DATACOPY]));
 
-        let mut interp = Interpreter::new_bytecode(eof);
+        let mut interp = Interpreter::new_bytecode(Arc::new(eof));
         interp.gas = Gas::new(10000);
 
         // Data copy
