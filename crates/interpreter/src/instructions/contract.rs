@@ -381,7 +381,7 @@ pub fn extscall<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, host: &mu
 pub fn create<const IS_CREATE2: bool, T, H: Host<T> + ?Sized, SPEC: Spec>(
     interpreter: &mut Interpreter,
     host: &mut H,
-    additional_data: &mut T,
+    // additional_data: &mut T,
 ) {
     require_non_staticcall!(interpreter);
 
@@ -452,7 +452,7 @@ pub fn create<const IS_CREATE2: bool, T, H: Host<T> + ?Sized, SPEC: Spec>(
 pub fn call<T, H: Host<T> + ?Sized, SPEC: Spec>(
     interpreter: &mut Interpreter,
     host: &mut H,
-    additional_data: &mut T,
+    // additional_data: &mut T,
 ) {
     pop!(interpreter, local_gas_limit);
     pop_address!(interpreter, to);
@@ -512,7 +512,7 @@ pub fn call<T, H: Host<T> + ?Sized, SPEC: Spec>(
 pub fn call_code<T, H: Host<T> + ?Sized, SPEC: Spec>(
     interpreter: &mut Interpreter,
     host: &mut H,
-    additional_data: &mut T,
+    // additional_data: &mut T,
 ) {
     pop!(interpreter, local_gas_limit);
     pop_address!(interpreter, to);
@@ -567,7 +567,7 @@ pub fn call_code<T, H: Host<T> + ?Sized, SPEC: Spec>(
 pub fn delegate_call<T, H: Host<T> + ?Sized, SPEC: Spec>(
     interpreter: &mut Interpreter,
     host: &mut H,
-    additional_data: &mut T,
+    // additional_data: &mut T,
 ) {
     check!(interpreter, HOMESTEAD);
     pop!(interpreter, local_gas_limit);
