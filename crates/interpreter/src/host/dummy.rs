@@ -1,4 +1,5 @@
 use crate::primitives::{hash_map::Entry, Bytecode, HashMap, U256};
+use crate::InstructionResult;
 use crate::{
     primitives::{Address, Env, Log, B256, KECCAK_EMPTY},
     Host, SStoreResult, SelfDestructResult,
@@ -127,7 +128,9 @@ impl Host<u32> for DummyHost {
         &mut self,
         interpreter: &mut crate::Interpreter,
         additional_data: &mut u32,
-    ) -> crate::InstructionResult {
-        todo!()
+    ) -> InstructionResult {
+        interpreter;
+        additional_data;
+        InstructionResult::Continue
     }
 }

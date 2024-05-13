@@ -4,13 +4,12 @@ mod contract;
 pub mod serde;
 mod shared_memory;
 mod stack;
-use std::sync::Arc;
-
 pub use contract::Contract;
 pub use shared_memory::{next_multiple_of_32, SharedMemory, EMPTY_SHARED_MEMORY};
 pub use stack::{Stack, STACK_LIMIT};
+use std::sync::Arc;
 
-use crate::EOFCreateOutcome;
+use crate::{interpreter, EOFCreateOutcome};
 use crate::{
     primitives::Bytes, push, push_b256, return_ok, return_revert, CallOutcome, CreateOutcome,
     FunctionStack, Gas, Host, InstructionResult, InterpreterAction,
@@ -355,26 +354,6 @@ impl Interpreter {
         core::mem::replace(&mut self.shared_memory, EMPTY_SHARED_MEMORY)
     }
 
-    /// loop steps until we are finished with execution
-    // pub fn run_inspect<T, H: Host<T>, SPEC: Spec>(
-    //     &mut self,
-    //     host: &mut H<T>,
-    //     additional_data: &mut T,
-    // ) -> InstructionResult {
-    //     for _count in 0..MAX_INSTRUCTION_SIZE {
-    //         let table: InstructionTable<dyn Host> =
-    //             opcode::make_instruction_table::<dyn Host, CancunSpec>();
-
-    //         if self.instruction_result == InstructionResult::Continue {
-    //             host.step(self, additional_data);
-    //             self.step::<H>(host, additional_data);
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //     self.instruction_result
-    // }
-
     /// Executes the interpreter until it returns or stops.
     pub fn run<T, FN, H: Host<T> + ?Sized>(
         &mut self,
@@ -411,18 +390,17 @@ impl Interpreter {
         &mut self,
         host: &mut H,
         additional_data: &mut T,
+        instruction_table: &[fn(&mut Interpreter, &mut H); 256],
     ) -> InstructionResult {
-        let instruction_table: [fn(&mut Interpreter, &mut H); 256] =
-            crate::opcode::make_instruction_table::<T, H, SPEC>();
+        // let instruction_table: [fn(&mut Interpreter, &mut H); 256] =
+        //     crate::opcode::make_instruction_table::<T, H, SPEC>();
 
         for _count in 0..MAX_INSTRUCTION_SIZE {
             if self.instruction_result == InstructionResult::Continue {
                 host.step(self, additional_data);
                 self.step(&instruction_table, host);
-                // todo! chao
-                // self.step::<T, H, SPEC>(host, additional_data);
-                // need test
             } else {
+                println!("{:?}", self.instruction_result);
                 break;
             }
         }
@@ -452,9 +430,11 @@ impl InterpreterResult {
 
 #[cfg(test)]
 mod tests {
+    use core::str::FromStr;
+
     use super::*;
     use crate::{opcode::InstructionTable, DummyHost};
-    use revm_primitives::CancunSpec;
+    use revm_primitives::{hex, keccak256, Address, CancunSpec, LatestSpec, ShanghaiSpec, B256};
 
     #[test]
     fn object_safety() {
@@ -469,5 +449,48 @@ mod tests {
         let table: InstructionTable<dyn Host<u32>> =
             crate::opcode::make_instruction_table::<u32, dyn Host<u32>, CancunSpec>();
         let _ = interp.run(EMPTY_SHARED_MEMORY, &table, host);
+    }
+
+    #[test]
+    fn test_run_inspect() {
+        // contract A {
+        //     uint256 x = 256;
+        //     function test() public view returns(uint){
+        //         return x;
+        //     }
+        // }
+
+        // contract B{
+        //     function test() public returns(uint){
+        //         A a = new A();
+        //         (bool ret, bytes memory data) = address(a).staticcall(abi.encodeWithSignature("test()"));
+        //         require(ret == true);
+        //         return abi.decode(data, (uint256));
+        //     }
+        // }
+        let code = "608060405234801561000f575f80fd5b5060043610610029575f3560e01c8063f8a8fd6d1461002d575b5f80fd5b61003561004b565b60405161004291906101b0565b60405180910390f35b5f806040516100599061018c565b604051809103905ff080158015610072573d5f803e3d5ffd5b5090505f808273ffffffffffffffffffffffffffffffffffffffff166040516024016040516020818303038152906040527ff8a8fd6d000000000000000000000000000000000000000000000000000000007bffffffffffffffffffffffffffffffffffffffffffffffffffffffff19166020820180517bffffffffffffffffffffffffffffffffffffffffffffffffffffffff838183161783525050505060405161011e919061021b565b5f60405180830381855afa9150503d805f8114610156576040519150601f19603f3d011682016040523d82523d5f602084013e61015b565b606091505b50915091506001151582151514610170575f80fd5b80806020019051810190610184919061025f565b935050505090565b60ce8061028b83390190565b5f819050919050565b6101aa81610198565b82525050565b5f6020820190506101c35f8301846101a1565b92915050565b5f81519050919050565b5f81905092915050565b8281835e5f83830152505050565b5f6101f5826101c9565b6101ff81856101d3565b935061020f8185602086016101dd565b80840191505092915050565b5f61022682846101eb565b915081905092915050565b5f80fd5b61023e81610198565b8114610248575f80fd5b50565b5f8151905061025981610235565b92915050565b5f6020828403121561027457610273610231565b5b5f6102818482850161024b565b9150509291505056fe60806040526101005f553480156013575f80fd5b5060af80601f5f395ff3fe6080604052348015600e575f80fd5b50600436106026575f3560e01c8063f8a8fd6d14602a575b5f80fd5b60306044565b604051603b91906062565b60405180910390f35b5f8054905090565b5f819050919050565b605c81604c565b82525050565b5f60208201905060735f8301846055565b9291505056fea2646970667358221220e2983c948a5d33611cc3a2d4ec5404e857c43f9ea5ec9cb4b3a710253bcdb53664736f6c63430008190033a2646970667358221220702b896f84f4ba4d28ab121e7c773dc70223a968bd5c1af0594da4827b57df0964736f6c63430008190033";
+        let code = Bytes::from_str(code).unwrap();
+        let code = Bytecode::new_raw(code);
+
+        let code_hash = hex::encode(keccak256(code.bytecode_bytes()));
+        let input = Bytes::from_str("f8a8fd6d").unwrap();
+
+        let target = Address::from_str("5B38Da6a701c568545dCfcB03FcB875f56beddC4").unwrap();
+        let call = Contract::new(
+            input.into(),
+            Arc::new(code),
+            Some(B256::from_str(&code_hash).unwrap()),
+            target,
+            Address::default(),
+            U256::ZERO,
+        );
+        let mut interp = Interpreter::new(call, u64::MAX, true);
+
+        let mut host = crate::DummyHost::default();
+        let table: InstructionTable<DummyHost> =
+            crate::opcode::make_instruction_table::<u32, DummyHost, CancunSpec>();
+
+        let _ = interp.run_inspect::<u32, DummyHost, ShanghaiSpec>(&mut host, &mut 3, &table);
+        println!("return data is: {}", interp.return_data_buffer);
     }
 }
