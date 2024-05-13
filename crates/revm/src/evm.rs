@@ -479,4 +479,12 @@ impl<T, EXT, DB: Database> Host<T> for Evm<'_, T, EXT, DB> {
             .map_err(|e| self.context.evm.error = Err(e))
             .ok()
     }
+
+    fn step(
+        &mut self,
+        interpreter: &mut Interpreter,
+        additional_data: &mut T,
+    ) -> revm_interpreter::InstructionResult {
+        todo!()
+    }
 }

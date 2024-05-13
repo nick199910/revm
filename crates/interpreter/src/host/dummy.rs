@@ -122,4 +122,12 @@ impl Host<u32> for DummyHost {
     fn selfdestruct(&mut self, _address: Address, _target: Address) -> Option<SelfDestructResult> {
         panic!("Selfdestruct is not supported for this host")
     }
+
+    fn step(
+        &mut self,
+        interpreter: &mut crate::Interpreter,
+        additional_data: &mut u32,
+    ) -> crate::InstructionResult {
+        todo!()
+    }
 }

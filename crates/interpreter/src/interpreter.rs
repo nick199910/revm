@@ -417,9 +417,11 @@ impl Interpreter {
 
         for _count in 0..MAX_INSTRUCTION_SIZE {
             if self.instruction_result == InstructionResult::Continue {
+                host.step(self, additional_data);
                 self.step(&instruction_table, host);
                 // todo! chao
                 // self.step::<T, H, SPEC>(host, additional_data);
+                // need test
             } else {
                 break;
             }

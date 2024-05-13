@@ -1,9 +1,13 @@
 use std::sync::Arc;
 
-use crate::primitives::{Address, Bytecode, Env, Log, B256, U256};
+use crate::{
+    primitives::{Address, Bytecode, Env, B256, U256},
+    CallInputs, CreateInputs, Gas, InstructionResult, Interpreter,
+};
 
 mod dummy;
 pub use dummy::DummyHost;
+use revm_primitives::Log;
 
 /// EVM context host.
 pub trait Host<T> {
@@ -49,6 +53,9 @@ pub trait Host<T> {
 
     /// Mark `address` to be deleted, with funds transferred to `target`.
     fn selfdestruct(&mut self, address: Address, target: Address) -> Option<SelfDestructResult>;
+
+    fn step(&mut self, interpreter: &mut Interpreter, additional_data: &mut T)
+        -> InstructionResult;
 }
 
 /// Represents the result of an `sstore` operation.

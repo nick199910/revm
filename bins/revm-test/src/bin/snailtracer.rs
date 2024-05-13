@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use revm::{
     db::BenchmarkDB,
     interpreter::analysis::to_analysed,
@@ -6,7 +8,7 @@ use revm::{
 };
 
 pub fn simple_example() {
-    let bytecode = to_analysed(Bytecode::new_raw(CONTRACT_DATA.clone()));
+    let bytecode = to_analysed(Arc::new(Bytecode::new_raw(CONTRACT_DATA.clone())));
 
     // BenchmarkDB is dummy state that implements Database trait.
     let mut evm: Evm<'_, u32, (), BenchmarkDB> = Evm::builder()
