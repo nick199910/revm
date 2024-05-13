@@ -394,16 +394,25 @@ impl Interpreter {
     ) -> InstructionResult {
         // let instruction_table: [fn(&mut Interpreter, &mut H); 256] =
         //     crate::opcode::make_instruction_table::<T, H, SPEC>();
-
+        self.next_action = InterpreterAction::None;
         for _count in 0..MAX_INSTRUCTION_SIZE {
             if self.instruction_result == InstructionResult::Continue {
                 host.step(self, additional_data);
                 self.step(&instruction_table, host);
+                if self.next_action.is_return() {
+                    self.return_data_buffer = self
+                        .next_action
+                        .clone()
+                        .into_result_return()
+                        .unwrap()
+                        .output
+                }
             } else {
                 println!("{:?}", self.instruction_result);
                 break;
             }
         }
+
         self.instruction_result
     }
 }
@@ -443,7 +452,7 @@ mod tests {
         let mut host = crate::DummyHost::default();
         let table: InstructionTable<DummyHost> =
             crate::opcode::make_instruction_table::<u32, DummyHost, CancunSpec>();
-        let _ = interp.run(EMPTY_SHARED_MEMORY, &table, &mut host);
+        let ret = interp.run(EMPTY_SHARED_MEMORY, &table, &mut host);
 
         let host: &mut dyn Host<u32> = &mut host as &mut dyn Host<u32>;
         let table: InstructionTable<dyn Host<u32>> =
@@ -468,7 +477,9 @@ mod tests {
         //         return abi.decode(data, (uint256));
         //     }
         // }
+
         let code = "608060405234801561000f575f80fd5b5060043610610029575f3560e01c8063f8a8fd6d1461002d575b5f80fd5b61003561004b565b60405161004291906101b0565b60405180910390f35b5f806040516100599061018c565b604051809103905ff080158015610072573d5f803e3d5ffd5b5090505f808273ffffffffffffffffffffffffffffffffffffffff166040516024016040516020818303038152906040527ff8a8fd6d000000000000000000000000000000000000000000000000000000007bffffffffffffffffffffffffffffffffffffffffffffffffffffffff19166020820180517bffffffffffffffffffffffffffffffffffffffffffffffffffffffff838183161783525050505060405161011e919061021b565b5f60405180830381855afa9150503d805f8114610156576040519150601f19603f3d011682016040523d82523d5f602084013e61015b565b606091505b50915091506001151582151514610170575f80fd5b80806020019051810190610184919061025f565b935050505090565b60ce8061028b83390190565b5f819050919050565b6101aa81610198565b82525050565b5f6020820190506101c35f8301846101a1565b92915050565b5f81519050919050565b5f81905092915050565b8281835e5f83830152505050565b5f6101f5826101c9565b6101ff81856101d3565b935061020f8185602086016101dd565b80840191505092915050565b5f61022682846101eb565b915081905092915050565b5f80fd5b61023e81610198565b8114610248575f80fd5b50565b5f8151905061025981610235565b92915050565b5f6020828403121561027457610273610231565b5b5f6102818482850161024b565b9150509291505056fe60806040526101005f553480156013575f80fd5b5060af80601f5f395ff3fe6080604052348015600e575f80fd5b50600436106026575f3560e01c8063f8a8fd6d14602a575b5f80fd5b60306044565b604051603b91906062565b60405180910390f35b5f8054905090565b5f819050919050565b605c81604c565b82525050565b5f60208201905060735f8301846055565b9291505056fea2646970667358221220e2983c948a5d33611cc3a2d4ec5404e857c43f9ea5ec9cb4b3a710253bcdb53664736f6c63430008190033a2646970667358221220702b896f84f4ba4d28ab121e7c773dc70223a968bd5c1af0594da4827b57df0964736f6c63430008190033";
+        let code = "604260005260206000F3";
         let code = Bytes::from_str(code).unwrap();
         let code = Bytecode::new_raw(code);
 
@@ -490,7 +501,14 @@ mod tests {
         let table: InstructionTable<DummyHost> =
             crate::opcode::make_instruction_table::<u32, DummyHost, CancunSpec>();
 
-        let _ = interp.run_inspect::<u32, DummyHost, ShanghaiSpec>(&mut host, &mut 3, &table);
+        let ret = interp.run_inspect::<u32, DummyHost, ShanghaiSpec>(&mut host, &mut 3, &table);
+
         println!("return data is: {}", interp.return_data_buffer);
+        // if interp.next_action.is_return() {
+        //     println!(
+        //         "return data is: {:?}",
+        //         interp.next_action.into_result_return().unwrap().output
+        //     );
+        // }
     }
 }
