@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     primitives::{Address, Bytecode, Env, B256, U256},
-    CallInputs, CreateInputs, Gas, InstructionResult, Interpreter,
+    CallInputs, CallOutcome, CreateInputs, CreateOutcome, Gas, InstructionResult, Interpreter,
 };
 
 mod dummy;
@@ -56,6 +56,16 @@ pub trait Host<T> {
 
     fn step(&mut self, interpreter: &mut Interpreter, additional_data: &mut T)
         -> InstructionResult;
+
+    fn create(&mut self, inputs: &mut CreateInputs, additional_data: &mut T) -> CreateOutcome;
+
+    fn call(
+        &mut self,
+        input: &mut CallInputs,
+        interp: &mut Interpreter,
+        output_info: (usize, usize),
+        additional_data: &mut T,
+    ) -> CallOutcome;
 }
 
 /// Represents the result of an `sstore` operation.

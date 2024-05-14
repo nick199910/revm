@@ -1,9 +1,12 @@
+use revm_primitives::Bytes;
+
 use crate::primitives::{hash_map::Entry, Bytecode, HashMap, U256};
-use crate::InstructionResult;
+use crate::InstructionResult::Continue;
 use crate::{
     primitives::{Address, Env, Log, B256, KECCAK_EMPTY},
     Host, SStoreResult, SelfDestructResult,
 };
+use crate::{Gas, InstructionResult, InterpreterResult};
 use std::sync::Arc;
 use std::vec::Vec;
 
@@ -132,5 +135,39 @@ impl Host<u32> for DummyHost {
         interpreter;
         additional_data;
         InstructionResult::Continue
+    }
+
+    fn create(
+        &mut self,
+        inputs: &mut crate::CreateInputs,
+        additional_data: &mut u32,
+    ) -> crate::CreateOutcome {
+        inputs;
+        additional_data;
+        crate::CreateOutcome {
+            result: InterpreterResult {
+                result: InstructionResult::Continue,
+                output: Bytes::new(),
+                gas: Gas::new(1000000),
+            },
+            address: Some(Address::default()),
+        }
+    }
+
+    fn call(
+        &mut self,
+        input: &mut crate::CallInputs,
+        interp: &mut crate::Interpreter,
+        output_info: (usize, usize),
+        additional_data: &mut u32,
+    ) -> crate::CallOutcome {
+        crate::CallOutcome {
+            result: InterpreterResult {
+                result: InstructionResult::Continue,
+                output: Bytes::new(),
+                gas: Gas::new(1000000),
+            },
+            memory_offset: (0..32),
+        }
     }
 }

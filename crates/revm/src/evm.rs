@@ -487,4 +487,22 @@ impl<T, EXT, DB: Database> Host<T> for Evm<'_, T, EXT, DB> {
     ) -> revm_interpreter::InstructionResult {
         todo!()
     }
+
+    fn create(
+        &mut self,
+        inputs: &mut CreateInputs,
+        additional_data: &mut T,
+    ) -> revm_interpreter::CreateOutcome {
+        todo!()
+    }
+
+    fn call(
+        &mut self,
+        input: &mut CallInputs,
+        interp: &mut Interpreter,
+        output_info: (usize, usize),
+        additional_data: &mut T,
+    ) -> revm_interpreter::CallOutcome {
+        todo!()
+    }
 }
