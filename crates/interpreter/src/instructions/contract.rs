@@ -578,7 +578,11 @@ pub fn call<T, H: Host<T> + ?Sized, SPEC: Spec>(
     };
 
     // Call host to interuct with target contract
-    let (out_offset, out_len) = (return_memory_offset.start, return_memory_offset.end);
+    interpreter.return_data_buffer = Bytes::new();
+    let (out_offset, out_len) = (
+        return_memory_offset.start,
+        return_memory_offset.end - return_memory_offset.start,
+    );
 
     let mut call_input = CallInputs {
         input,
@@ -684,7 +688,11 @@ pub fn call_code<T, H: Host<T> + ?Sized, SPEC: Spec>(
         }),
     };
 
-    let (out_offset, out_len) = (return_memory_offset.start, return_memory_offset.end);
+    interpreter.return_data_buffer = Bytes::new();
+    let (out_offset, out_len) = (
+        return_memory_offset.start,
+        return_memory_offset.end - return_memory_offset.start,
+    );
 
     let mut call_input = CallInputs {
         input,
@@ -780,7 +788,12 @@ pub fn delegate_call<T, H: Host<T> + ?Sized, SPEC: Spec>(
             return_memory_offset: return_memory_offset.clone(),
         }),
     };
-    let (out_offset, out_len) = (return_memory_offset.start, return_memory_offset.end);
+
+    interpreter.return_data_buffer = Bytes::new();
+    let (out_offset, out_len) = (
+        return_memory_offset.start,
+        return_memory_offset.end - return_memory_offset.start,
+    );
 
     let mut call_input = CallInputs {
         input,
@@ -877,7 +890,11 @@ pub fn static_call<T, H: Host<T> + ?Sized, SPEC: Spec>(
         }),
     };
 
-    let (out_offset, out_len) = (return_memory_offset.start, return_memory_offset.end);
+    interpreter.return_data_buffer = Bytes::new();
+    let (out_offset, out_len) = (
+        return_memory_offset.start,
+        return_memory_offset.end - return_memory_offset.start,
+    );
 
     let mut call_input = CallInputs {
         input,
