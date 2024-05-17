@@ -5,7 +5,11 @@ use crate::{
     Host, InstructionResult, Interpreter, InterpreterResult,
 };
 
-pub fn rjump<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn rjump<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     require_eof!(interpreter);
     gas!(interpreter, gas::BASE);
     let offset = unsafe { read_i16(interpreter.instruction_pointer) } as isize;
@@ -14,7 +18,11 @@ pub fn rjump<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut 
     interpreter.instruction_pointer = unsafe { interpreter.instruction_pointer.offset(offset + 2) };
 }
 
-pub fn rjumpi<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn rjumpi<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     require_eof!(interpreter);
     gas!(interpreter, gas::CONDITION_JUMP_GAS);
     pop!(interpreter, condition);
@@ -28,7 +36,11 @@ pub fn rjumpi<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut
     interpreter.instruction_pointer = unsafe { interpreter.instruction_pointer.offset(offset) };
 }
 
-pub fn rjumpv<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn rjumpv<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     require_eof!(interpreter);
     gas!(interpreter, gas::CONDITION_JUMP_GAS);
     pop!(interpreter, case);
@@ -53,13 +65,21 @@ pub fn rjumpv<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut
     interpreter.instruction_pointer = unsafe { interpreter.instruction_pointer.offset(offset) };
 }
 
-pub fn jump<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn jump<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::MID);
     pop!(interpreter, target);
     jump_inner(interpreter, target);
 }
 
-pub fn jumpi<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn jumpi<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::HIGH);
     pop!(interpreter, target, cond);
     if cond != U256::ZERO {
@@ -78,11 +98,19 @@ fn jump_inner(interpreter: &mut Interpreter, target: U256) {
     interpreter.instruction_pointer = unsafe { interpreter.bytecode.as_ptr().add(target) };
 }
 
-pub fn jumpdest_or_nop<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn jumpdest_or_nop<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::JUMPDEST);
 }
 
-pub fn callf<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn callf<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     require_eof!(interpreter);
     gas!(interpreter, gas::LOW);
 
@@ -103,7 +131,11 @@ pub fn callf<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut 
     interpreter.load_eof_code(idx, 0)
 }
 
-pub fn retf<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn retf<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     require_eof!(interpreter);
     gas!(interpreter, gas::RETF_GAS);
 
@@ -114,7 +146,11 @@ pub fn retf<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H
     interpreter.load_eof_code(fframe.idx, fframe.pc);
 }
 
-pub fn jumpf<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn jumpf<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     require_eof!(interpreter);
     gas!(interpreter, gas::LOW);
 
@@ -126,7 +162,11 @@ pub fn jumpf<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut 
     interpreter.load_eof_code(idx, 0)
 }
 
-pub fn pc<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn pc<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::BASE);
     // - 1 because we have already advanced the instruction pointer in `Interpreter::step`
     push!(interpreter, U256::from(interpreter.program_counter() - 1));
@@ -156,28 +196,48 @@ fn return_inner(interpreter: &mut Interpreter, instruction_result: InstructionRe
     };
 }
 
-pub fn ret<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn ret<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     return_inner(interpreter, InstructionResult::Return);
 }
 
 /// EIP-140: REVERT instruction
-pub fn revert<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn revert<T, H: Host<T> + ?Sized, SPEC: Spec>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     check!(interpreter, BYZANTIUM);
     return_inner(interpreter, InstructionResult::Revert);
 }
 
 /// Stop opcode. This opcode halts the execution.
-pub fn stop<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn stop<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     interpreter.instruction_result = InstructionResult::Stop;
 }
 
 /// Invalid opcode. This opcode halts the execution.
-pub fn invalid<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn invalid<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     interpreter.instruction_result = InstructionResult::InvalidFEOpcode;
 }
 
 /// Unknown opcode. This opcode halts the execution.
-pub fn unknown<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn unknown<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     interpreter.instruction_result = InstructionResult::OpcodeNotFound;
 }
 
@@ -203,7 +263,7 @@ mod test {
         interp.is_eof = true;
         interp.gas = Gas::new(10000);
 
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.program_counter(), 5);
     }
 
@@ -220,10 +280,10 @@ mod test {
         interp.gas = Gas::new(10000);
 
         // dont jump
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.program_counter(), 3);
         // jumps to last opcode
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.program_counter(), 7);
     }
 
@@ -251,30 +311,30 @@ mod test {
 
         // more then max_index
         interp.stack.push(U256::from(10)).unwrap();
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.program_counter(), 6);
 
         // cleanup
-        interp.step(&table, &mut host);
-        interp.step(&table, &mut host);
-        interp.step(&table, &mut host);
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
+        interp.step(&table, &mut host, &mut u32::MAX);
+        interp.step(&table, &mut host, &mut u32::MAX);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.program_counter(), 0);
 
         // jump to first index of vtable
         interp.stack.push(U256::from(0)).unwrap();
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.program_counter(), 7);
 
         // cleanup
-        interp.step(&table, &mut host);
-        interp.step(&table, &mut host);
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
+        interp.step(&table, &mut host, &mut u32::MAX);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.program_counter(), 0);
 
         // jump to second index of vtable
         interp.stack.push(U256::from(1)).unwrap();
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.program_counter(), 8);
     }
 
@@ -306,7 +366,7 @@ mod test {
         assert!(interp.function_stack.return_stack.is_empty());
 
         // CALLF
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
 
         assert_eq!(interp.function_stack.current_code_idx, 1);
         assert_eq!(
@@ -316,16 +376,16 @@ mod test {
         assert_eq!(interp.instruction_pointer, bytes2.as_ptr());
 
         // STOP
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         // RETF
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
 
         assert_eq!(interp.function_stack.current_code_idx, 0);
         assert_eq!(interp.function_stack.return_stack, Vec::new());
         assert_eq!(interp.program_counter(), 3);
 
         // JUMPF
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.function_stack.current_code_idx, 1);
         assert_eq!(interp.function_stack.return_stack, Vec::new());
         assert_eq!(interp.instruction_pointer, bytes2.as_ptr());

@@ -5,25 +5,41 @@ use crate::{
     Host, Interpreter,
 };
 
-pub fn add<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn add<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::VERYLOW);
     pop_top!(interpreter, op1, op2);
     *op2 = op1.wrapping_add(*op2);
 }
 
-pub fn mul<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn mul<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::LOW);
     pop_top!(interpreter, op1, op2);
     *op2 = op1.wrapping_mul(*op2);
 }
 
-pub fn sub<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn sub<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::VERYLOW);
     pop_top!(interpreter, op1, op2);
     *op2 = op1.wrapping_sub(*op2);
 }
 
-pub fn div<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn div<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::LOW);
     pop_top!(interpreter, op1, op2);
     if *op2 != U256::ZERO {
@@ -31,13 +47,21 @@ pub fn div<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) 
     }
 }
 
-pub fn sdiv<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn sdiv<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::LOW);
     pop_top!(interpreter, op1, op2);
     *op2 = i256_div(op1, *op2);
 }
 
-pub fn rem<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn rem<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::LOW);
     pop_top!(interpreter, op1, op2);
     if *op2 != U256::ZERO {
@@ -45,25 +69,41 @@ pub fn rem<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) 
     }
 }
 
-pub fn smod<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn smod<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::LOW);
     pop_top!(interpreter, op1, op2);
     *op2 = i256_mod(op1, *op2)
 }
 
-pub fn addmod<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn addmod<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::MID);
     pop_top!(interpreter, op1, op2, op3);
     *op3 = op1.add_mod(op2, *op3)
 }
 
-pub fn mulmod<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn mulmod<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::MID);
     pop_top!(interpreter, op1, op2, op3);
     *op3 = op1.mul_mod(op2, *op3)
 }
 
-pub fn exp<T, H:Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn exp<T, H: Host<T> + ?Sized, SPEC: Spec>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     pop_top!(interpreter, op1, op2);
     gas_or_fail!(interpreter, gas::exp_cost(SPEC::SPEC_ID, *op2));
     *op2 = op1.pow(*op2);
@@ -84,7 +124,11 @@ pub fn exp<T, H:Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, _ho
 /// `y | !mask` where `|` is the bitwise `OR` and `!` is bitwise negation. Similarly, if
 /// `b == 0` then the yellow paper says the output should start with all zeros, then end with
 /// bits from `b`; this is equal to `y & mask` where `&` is bitwise `AND`.
-pub fn signextend<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn signextend<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::LOW);
     pop_top!(interpreter, ext, x);
     // For 31 we also don't need to do anything.

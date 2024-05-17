@@ -129,21 +129,17 @@ impl Host<u32> for DummyHost {
 
     fn step(
         &mut self,
-        interpreter: &mut crate::Interpreter,
-        additional_data: &mut u32,
+        _interpreter: &mut crate::Interpreter,
+        _additional_data: &mut u32,
     ) -> InstructionResult {
-        interpreter;
-        additional_data;
         InstructionResult::Continue
     }
 
     fn create(
         &mut self,
-        inputs: &mut crate::CreateInputs,
-        additional_data: &mut u32,
+        _inputs: &mut crate::CreateInputs,
+        _additional_data: &mut u32,
     ) -> crate::CreateOutcome {
-        inputs;
-        additional_data;
         crate::CreateOutcome {
             result: InterpreterResult {
                 result: InstructionResult::Continue,
@@ -156,10 +152,10 @@ impl Host<u32> for DummyHost {
 
     fn call(
         &mut self,
-        input: &mut crate::CallInputs,
-        interp: &mut crate::Interpreter,
-        output_info: (usize, usize),
-        additional_data: &mut u32,
+        _input: &mut crate::CallInputs,
+        _interp: &mut crate::Interpreter,
+        _output_info: (usize, usize),
+        _additional_data: &mut u32,
     ) -> crate::CallOutcome {
         crate::CallOutcome {
             result: InterpreterResult {

@@ -21,7 +21,7 @@ where
     type DBError = DBError;
 }
 
-fn run_transaction<T, EXT, DB: DatabaseRefDebugError>(
+fn run_transaction<T: From<Box<dyn Any>>, EXT, DB: DatabaseRefDebugError>(
     db: DB,
     ext: EXT,
     register_handles_fn: HandleRegister<T, EXT, WrapDatabaseRef<DB>>,
@@ -36,7 +36,11 @@ fn run_transaction<T, EXT, DB: DatabaseRefDebugError>(
     Ok((result, evm.into_context().evm.inner.db.0))
 }
 
-fn run_transaction_and_commit_with_ext<T, EXT, DB: DatabaseRefDebugError + DatabaseCommit>(
+fn run_transaction_and_commit_with_ext<
+    T: From<Box<dyn Any>>,
+    EXT,
+    DB: DatabaseRefDebugError + DatabaseCommit,
+>(
     db: DB,
     ext: EXT,
     register_handles_fn: HandleRegister<T, EXT, WrapDatabaseRef<DB>>,
@@ -52,7 +56,6 @@ fn run_transaction_and_commit_with_ext<T, EXT, DB: DatabaseRefDebugError + Datab
 }
 
 fn run_transaction_and_commit(db: &mut CacheDB<EmptyDB>) -> anyhow::Result<()> {
-    trait Test {}
     let ResultAndState { state: changes, .. } = {
         let rdb = &*db;
 

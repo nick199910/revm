@@ -7,17 +7,17 @@ use core::{fmt, marker::PhantomData};
 use std::boxed::Box;
 
 /// EVM opcode function signature.
-pub type Instruction<H> = fn(&mut Interpreter, &mut H);
+pub type Instruction<H, T> = fn(&mut Interpreter, &mut H, &mut T);
 
 /// Instruction table is list of instruction function pointers mapped to
 /// 256 EVM opcodes.
-pub type InstructionTable<H> = [Instruction<H>; 256];
+pub type InstructionTable<H, T> = [Instruction<H, T>; 256];
 
 /// EVM opcode function signature.
-pub type BoxedInstruction<'a, H> = Box<dyn Fn(&mut Interpreter, &mut H) + 'a>;
+pub type BoxedInstruction<'a, H, T> = Box<dyn Fn(&mut Interpreter, &mut H, &mut T) + 'a>;
 
 /// A table of instructions.
-pub type BoxedInstructionTable<'a, H> = [BoxedInstruction<'a, H>; 256];
+pub type BoxedInstructionTable<'a, H, T> = [BoxedInstruction<'a, H, T>; 256];
 
 /// Instruction set that contains plain instruction table that contains simple `fn` function pointer.
 /// and Boxed `Fn` variant that contains `Box<dyn Fn()>` function pointer that can be used with closured.
@@ -26,9 +26,8 @@ pub type BoxedInstructionTable<'a, H> = [BoxedInstruction<'a, H>; 256];
 ///
 /// Boxed variant can be used to wrap plain function pointer with closure.
 pub enum InstructionTables<'a, T, H> {
-    Plain(InstructionTable<H>),
-    Boxed(BoxedInstructionTable<'a, H>),
-    _Marker(PhantomData<T>),
+    Plain(InstructionTable<H, T>),
+    Boxed(BoxedInstructionTable<'a, H, T>),
 }
 
 impl<T, H: Host<T>> InstructionTables<'_, T, H> {
@@ -39,13 +38,13 @@ impl<T, H: Host<T>> InstructionTables<'_, T, H> {
     }
 }
 
-impl<'a, T, H: Host<T> + 'a> InstructionTables<'a, T, H> {
+impl<'a, T: 'a, H: Host<T> + 'a> InstructionTables<'a, T, H> {
     /// Inserts a boxed instruction into the table with the specified index.
     ///
     /// This will convert the table into the [BoxedInstructionTable] variant if it is currently a
     /// plain instruction table, before inserting the instruction.
     #[inline]
-    pub fn insert_boxed(&mut self, opcode: u8, instruction: BoxedInstruction<'a, H>) {
+    pub fn insert_boxed(&mut self, opcode: u8, instruction: BoxedInstruction<'a, H, T>) {
         // first convert the table to boxed variant
         self.convert_boxed();
 
@@ -57,13 +56,12 @@ impl<'a, T, H: Host<T> + 'a> InstructionTables<'a, T, H> {
             Self::Boxed(table) => {
                 table[opcode as usize] = Box::new(instruction);
             }
-            Self::_Marker(_) => todo!(),
         }
     }
 
     /// Inserts the instruction into the table with the specified index.
     #[inline]
-    pub fn insert(&mut self, opcode: u8, instruction: Instruction<H>) {
+    pub fn insert(&mut self, opcode: u8, instruction: Instruction<H, T>) {
         match self {
             Self::Plain(table) => {
                 table[opcode as usize] = instruction;
@@ -71,7 +69,6 @@ impl<'a, T, H: Host<T> + 'a> InstructionTables<'a, T, H> {
             Self::Boxed(table) => {
                 table[opcode as usize] = Box::new(instruction);
             }
-            Self::_Marker(_) => todo!(),
         }
     }
 
@@ -82,19 +79,19 @@ impl<'a, T, H: Host<T> + 'a> InstructionTables<'a, T, H> {
         match self {
             Self::Plain(table) => {
                 *self = Self::Boxed(core::array::from_fn(|i| {
-                    let instruction: BoxedInstruction<'a, H> = Box::new(table[i]);
+                    let instruction: BoxedInstruction<'a, H, T> = Box::new(table[i]);
                     instruction
                 }));
             }
             Self::Boxed(_) => {}
-            Self::_Marker(_) => {}
         };
     }
 }
 
 /// Make instruction table.
 #[inline]
-pub const fn make_instruction_table<T, H: Host<T> + ?Sized, SPEC: Spec>() -> InstructionTable<H> {
+pub const fn make_instruction_table<T, H: Host<T> + ?Sized, SPEC: Spec>() -> InstructionTable<H, T>
+{
     // Force const-eval of the table creation, making this function trivial.
     // TODO: Replace this with a `const {}` block once it is stable.
     struct ConstTable<T, H: Host<T> + ?Sized, SPEC: Spec> {
@@ -103,8 +100,8 @@ pub const fn make_instruction_table<T, H: Host<T> + ?Sized, SPEC: Spec>() -> Ins
         _t: PhantomData<T>,
     }
     impl<T, H: Host<T> + ?Sized, SPEC: Spec> ConstTable<T, H, SPEC> {
-        const NEW: InstructionTable<H> = {
-            let mut tables: InstructionTable<H> = [control::unknown; 256];
+        const NEW: InstructionTable<H, T> = {
+            let mut tables: InstructionTable<H, T> = [control::unknown; 256];
             let mut i = 0;
             while i < 256 {
                 tables[i] = instruction::<T, H, SPEC>(i as u8);
@@ -119,13 +116,13 @@ pub const fn make_instruction_table<T, H: Host<T> + ?Sized, SPEC: Spec>() -> Ins
 /// Make boxed instruction table that calls `outer` closure for every instruction.
 #[inline]
 pub fn make_boxed_instruction_table<'a, T, H, SPEC, FN>(
-    table: InstructionTable<H>,
+    table: InstructionTable<H, T>,
     mut outer: FN,
-) -> BoxedInstructionTable<'a, H>
+) -> BoxedInstructionTable<'a, H, T>
 where
     H: Host<T>,
     SPEC: Spec + 'a,
-    FN: FnMut(Instruction<H>) -> BoxedInstruction<'a, H>,
+    FN: FnMut(Instruction<H, T>) -> BoxedInstruction<'a, H, T>,
 {
     core::array::from_fn(|i| outer(table[i]))
 }
@@ -345,7 +342,7 @@ macro_rules! opcodes {
         };
 
         /// Returns the instruction function for the given opcode and spec.
-        pub const fn instruction<T, H: Host<T> + ?Sized, SPEC: Spec>(opcode: u8) -> Instruction<H> {
+        pub const fn instruction<T, H: Host<T> + ?Sized, SPEC: Spec>(opcode: u8) -> Instruction<H, T> {
             match opcode {
                 $($name => $f,)*
                 _ => control::unknown,

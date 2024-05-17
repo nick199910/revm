@@ -8,7 +8,7 @@ use revm::{
     Evm,
 };
 use revm_interpreter::{opcode::make_instruction_table, SharedMemory, EMPTY_SHARED_MEMORY};
-use std::{sync::Arc, time::Duration};
+use std::{any::Any, sync::Arc, time::Duration};
 
 fn analysis(c: &mut Criterion) {
     let evm = Evm::builder()
@@ -90,7 +90,7 @@ fn transfer(c: &mut Criterion) {
 
 fn bench_transact<EXT>(
     g: &mut BenchmarkGroup<'_, WallTime>,
-    evm: &mut Evm<'_, u32, EXT, BenchmarkDB>,
+    evm: &mut Evm<'_, Box<dyn Any>, EXT, BenchmarkDB>,
 ) {
     let state = match evm.context.evm.db.0 {
         Bytecode::LegacyRaw(_) => "raw",
@@ -101,7 +101,10 @@ fn bench_transact<EXT>(
     g.bench_function(id, |b| b.iter(|| evm.transact().unwrap()));
 }
 
-fn bench_eval(g: &mut BenchmarkGroup<'_, WallTime>, evm: &mut Evm<'static, u32, (), BenchmarkDB>) {
+fn bench_eval(
+    g: &mut BenchmarkGroup<'_, WallTime>,
+    evm: &mut Evm<'static, Box<dyn Any>, (), BenchmarkDB>,
+) {
     g.bench_function("eval", |b| {
         let contract = Contract {
             input: evm.context.evm.env.tx.data.clone(),
@@ -116,7 +119,7 @@ fn bench_eval(g: &mut BenchmarkGroup<'_, WallTime>, evm: &mut Evm<'static, u32, 
             // Later return memory back.
             let temp = core::mem::replace(&mut shared_memory, EMPTY_SHARED_MEMORY);
             let mut interpreter = Interpreter::new(contract.clone(), u64::MAX, false);
-            let res = interpreter.run(temp, &instruction_table, &mut host);
+            let res = interpreter.run(temp, &mut host, &instruction_table, &mut u32::MAX);
             shared_memory = interpreter.take_memory();
             host.clear();
             res

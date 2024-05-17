@@ -4,7 +4,11 @@ use crate::{
     Host, Interpreter,
 };
 
-pub fn pop<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn pop<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::BASE);
     if let Err(result) = interpreter.stack.pop() {
         interpreter.instruction_result = result;
@@ -14,7 +18,11 @@ pub fn pop<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H)
 /// EIP-3855: PUSH0 instruction
 ///
 /// Introduce a new instruction which pushes the constant value 0 onto the stack.
-pub fn push0<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn push0<T, H: Host<T> + ?Sized, SPEC: Spec>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     check!(interpreter, SHANGHAI);
     gas!(interpreter, gas::BASE);
     if let Err(result) = interpreter.stack.push(U256::ZERO) {
@@ -22,7 +30,11 @@ pub fn push0<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, 
     }
 }
 
-pub fn push<T, const N: usize, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn push<T, const N: usize, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::VERYLOW);
     // SAFETY: In analysis we append trailing bytes to the bytecode so that this is safe to do
     // without bounds checking.
@@ -37,21 +49,33 @@ pub fn push<T, const N: usize, H: Host<T> + ?Sized>(interpreter: &mut Interprete
     interpreter.instruction_pointer = unsafe { ip.add(N) };
 }
 
-pub fn dup<const N: usize, T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn dup<const N: usize, T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::VERYLOW);
     if let Err(result) = interpreter.stack.dup(N) {
         interpreter.instruction_result = result;
     }
 }
 
-pub fn swap<const N: usize, T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn swap<const N: usize, T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::VERYLOW);
     if let Err(result) = interpreter.stack.swap(N) {
         interpreter.instruction_result = result;
     }
 }
 
-pub fn dupn<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn dupn<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     require_eof!(interpreter);
     gas!(interpreter, gas::VERYLOW);
     let imm = unsafe { *interpreter.instruction_pointer };
@@ -61,7 +85,11 @@ pub fn dupn<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H
     interpreter.instruction_pointer = unsafe { interpreter.instruction_pointer.offset(1) };
 }
 
-pub fn swapn<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn swapn<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     require_eof!(interpreter);
     gas!(interpreter, gas::VERYLOW);
     let imm = unsafe { *interpreter.instruction_pointer };
@@ -71,7 +99,11 @@ pub fn swapn<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut 
     interpreter.instruction_pointer = unsafe { interpreter.instruction_pointer.offset(1) };
 }
 
-pub fn exchange<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn exchange<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     require_eof!(interpreter);
     gas!(interpreter, gas::VERYLOW);
     let imm = unsafe { *interpreter.instruction_pointer };
@@ -107,11 +139,11 @@ mod test {
 
         interp.stack.push(U256::from(10)).unwrap();
         interp.stack.push(U256::from(20)).unwrap();
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.stack.pop(), Ok(U256::from(20)));
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.stack.pop(), Ok(U256::from(10)));
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.instruction_result, InstructionResult::StackUnderflow);
     }
 
@@ -128,10 +160,10 @@ mod test {
         interp.stack.push(U256::from(10)).unwrap();
         interp.stack.push(U256::from(20)).unwrap();
         interp.stack.push(U256::from(0)).unwrap();
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.stack.peek(0), Ok(U256::from(20)));
         assert_eq!(interp.stack.peek(1), Ok(U256::from(0)));
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.stack.peek(0), Ok(U256::from(10)));
         assert_eq!(interp.stack.peek(2), Ok(U256::from(20)));
     }
@@ -152,10 +184,10 @@ mod test {
         interp.stack.push(U256::from(15)).unwrap();
         interp.stack.push(U256::from(0)).unwrap();
 
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.stack.peek(1), Ok(U256::from(10)));
         assert_eq!(interp.stack.peek(2), Ok(U256::from(15)));
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.stack.peek(2), Ok(U256::from(1)));
         assert_eq!(interp.stack.peek(4), Ok(U256::from(15)));
     }

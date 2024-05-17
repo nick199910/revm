@@ -334,8 +334,9 @@ impl Interpreter {
         &mut self,
         instruction_table: &[FN; 256],
         host: &mut H,
+        _additional: &mut T,
     ) where
-        FN: Fn(&mut Interpreter, &mut H),
+        FN: Fn(&mut Interpreter, &mut H, &mut T),
     {
         // Get current opcode.
         let opcode = unsafe { *self.instruction_pointer };
@@ -346,7 +347,7 @@ impl Interpreter {
         self.instruction_pointer = unsafe { self.instruction_pointer.offset(1) };
 
         // execute instruction.
-        (instruction_table[opcode as usize])(self, host)
+        (instruction_table[opcode as usize])(self, host, _additional)
     }
 
     /// Take memory and replace it with empty memory.
@@ -358,17 +359,18 @@ impl Interpreter {
     pub fn run<T, FN, H: Host<T> + ?Sized>(
         &mut self,
         shared_memory: SharedMemory,
-        instruction_table: &[FN; 256],
         host: &mut H,
+        instruction_table: &[FN; 256],
+        _additional: &mut T,
     ) -> InterpreterAction
     where
-        FN: Fn(&mut Interpreter, &mut H),
+        FN: Fn(&mut Interpreter, &mut H, &mut T),
     {
         self.next_action = InterpreterAction::None;
         self.shared_memory = shared_memory;
         // main loop
         while self.instruction_result == InstructionResult::Continue {
-            self.step(instruction_table, host);
+            self.step(instruction_table, host, _additional);
         }
 
         // Return next action if it is some.
@@ -389,8 +391,8 @@ impl Interpreter {
     pub fn run_inspect<T, H: Host<T>, SPEC: Spec>(
         &mut self,
         host: &mut H,
+        instruction_table: &[fn(&mut Interpreter, &mut H, &mut T); 256],
         additional_data: &mut T,
-        instruction_table: &[fn(&mut Interpreter, &mut H); 256],
     ) -> InstructionResult {
         // let instruction_table: [fn(&mut Interpreter, &mut H); 256] =
         //     crate::opcode::make_instruction_table::<T, H, SPEC>();
@@ -398,7 +400,7 @@ impl Interpreter {
         for _count in 0..MAX_INSTRUCTION_SIZE {
             if self.instruction_result == InstructionResult::Continue {
                 host.step(self, additional_data);
-                self.step(&instruction_table, host);
+                self.step(&instruction_table, host, additional_data);
                 if self.next_action.is_return() {
                     self.return_data_buffer = self
                         .next_action
@@ -439,7 +441,7 @@ impl InterpreterResult {
 
 #[cfg(test)]
 mod tests {
-    use core::str::FromStr;
+    use core::{any::Any, str::FromStr};
 
     use super::*;
     use crate::{opcode::InstructionTable, DummyHost};
@@ -450,14 +452,41 @@ mod tests {
         let mut interp = Interpreter::new(Contract::default(), u64::MAX, false);
 
         let mut host = crate::DummyHost::default();
-        let table: InstructionTable<DummyHost> =
+        let table: InstructionTable<DummyHost, u32> =
             crate::opcode::make_instruction_table::<u32, DummyHost, CancunSpec>();
-        let ret = interp.run(EMPTY_SHARED_MEMORY, &table, &mut host);
+        let ret = interp.run(EMPTY_SHARED_MEMORY, &mut host, &table, &mut u32::MAX);
 
         let host: &mut dyn Host<u32> = &mut host as &mut dyn Host<u32>;
-        let table: InstructionTable<dyn Host<u32>> =
+        let table: InstructionTable<dyn Host<u32>, u32> =
             crate::opcode::make_instruction_table::<u32, dyn Host<u32>, CancunSpec>();
-        let _ = interp.run(EMPTY_SHARED_MEMORY, &table, host);
+        let _ = interp.run(EMPTY_SHARED_MEMORY, host, &table, &mut u32::MAX);
+    }
+
+    #[test]
+    fn test_run_inspect_create() {
+        let code = "7067600035600757FE5B60005260086018F3600052601760156000f0600060006000600060008561FFFFf1600060006032600060008661FFFFf1";
+        let code = Bytecode::new_raw(Bytes::from_str(code).unwrap());
+
+        let code_hash = hex::encode(keccak256(code.bytecode_bytes()));
+        let input = Bytes::from_str("b5a49624").unwrap();
+
+        let target = Address::from_str("5B38Da6a701c568545dCfcB03FcB875f56beddC4").unwrap();
+        let call = Contract::new(
+            input.into(),
+            Arc::new(code),
+            Some(B256::from_str(&code_hash).unwrap()),
+            target,
+            Address::default(),
+            U256::ZERO,
+        );
+        let mut interp = Interpreter::new(call, u64::MAX, false);
+
+        let mut host = crate::DummyHost::default();
+        let table: InstructionTable<DummyHost, u32> =
+            crate::opcode::make_instruction_table::<u32, DummyHost, ShanghaiSpec>();
+
+        let ret = interp.run_inspect::<u32, DummyHost, ShanghaiSpec>(&mut host, &table, &mut 3);
+        println!("ret is {:?}", ret);
     }
 
     #[test]
@@ -498,10 +527,10 @@ mod tests {
         let mut interp = Interpreter::new(call, u64::MAX, true);
 
         let mut host = crate::DummyHost::default();
-        let table: InstructionTable<DummyHost> =
+        let table: InstructionTable<DummyHost, u32> =
             crate::opcode::make_instruction_table::<u32, DummyHost, CancunSpec>();
 
-        let ret = interp.run_inspect::<u32, DummyHost, ShanghaiSpec>(&mut host, &mut 3, &table);
+        let ret = interp.run_inspect::<u32, DummyHost, ShanghaiSpec>(&mut host, &table, &mut 3);
 
         println!("return data is: {}", interp.return_data_buffer);
         // if interp.next_action.is_return() {

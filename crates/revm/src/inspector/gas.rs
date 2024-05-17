@@ -118,7 +118,11 @@ mod tests {
     impl<T: From<Box<dyn Any>>, DB: Database> Inspector<T, DB> for StackInspector {
         fn initialize_interp(&mut self, interp: &mut Interpreter, context: &mut EvmContext<DB>) {
             // self.gas_inspector.initialize_interp(interp, context);
-            <GasInspector as inspector::Inspector<T, DB>>::initialize_interp(&mut self.gas_inspector, interp, context);
+            <GasInspector as inspector::Inspector<T, DB>>::initialize_interp(
+                &mut self.gas_inspector,
+                interp,
+                context,
+            );
         }
 
         fn step(
@@ -133,7 +137,11 @@ mod tests {
 
         fn log(&mut self, context: &mut EvmContext<DB>, log: &Log) {
             // self.gas_inspector.log(context, log);
-            <GasInspector as inspector::Inspector<T, DB>>::log(&mut self.gas_inspector, context, log);
+            <GasInspector as inspector::Inspector<T, DB>>::log(
+                &mut self.gas_inspector,
+                context,
+                log,
+            );
         }
 
         fn step_end(

@@ -7,67 +7,111 @@ use crate::{
 use core::cmp::Ordering;
 use revm_primitives::uint;
 
-pub fn lt<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn lt<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::VERYLOW);
     pop_top!(interpreter, op1, op2);
     *op2 = U256::from(op1 < *op2);
 }
 
-pub fn gt<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn gt<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::VERYLOW);
     pop_top!(interpreter, op1, op2);
     *op2 = U256::from(op1 > *op2);
 }
 
-pub fn slt<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn slt<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::VERYLOW);
     pop_top!(interpreter, op1, op2);
     *op2 = U256::from(i256_cmp(&op1, op2) == Ordering::Less);
 }
 
-pub fn sgt<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn sgt<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::VERYLOW);
     pop_top!(interpreter, op1, op2);
     *op2 = U256::from(i256_cmp(&op1, op2) == Ordering::Greater);
 }
 
-pub fn eq<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn eq<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::VERYLOW);
     pop_top!(interpreter, op1, op2);
     *op2 = U256::from(op1 == *op2);
 }
 
-pub fn iszero<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn iszero<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::VERYLOW);
     pop_top!(interpreter, op1);
     *op1 = U256::from(*op1 == U256::ZERO);
 }
 
-pub fn bitand<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn bitand<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::VERYLOW);
     pop_top!(interpreter, op1, op2);
     *op2 = op1 & *op2;
 }
 
-pub fn bitor<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn bitor<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::VERYLOW);
     pop_top!(interpreter, op1, op2);
     *op2 = op1 | *op2;
 }
 
-pub fn bitxor<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn bitxor<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::VERYLOW);
     pop_top!(interpreter, op1, op2);
     *op2 = op1 ^ *op2;
 }
 
-pub fn not<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn not<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::VERYLOW);
     pop_top!(interpreter, op1);
     *op1 = !*op1;
 }
 
-pub fn byte<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn byte<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     gas!(interpreter, gas::VERYLOW);
     pop_top!(interpreter, op1, op2);
 
@@ -81,7 +125,11 @@ pub fn byte<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H
 }
 
 /// EIP-145: Bitwise shifting instructions in EVM
-pub fn shl<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn shl<T, H: Host<T> + ?Sized, SPEC: Spec>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     check!(interpreter, CONSTANTINOPLE);
     gas!(interpreter, gas::VERYLOW);
     pop_top!(interpreter, op1, op2);
@@ -89,7 +137,11 @@ pub fn shl<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, _h
 }
 
 /// EIP-145: Bitwise shifting instructions in EVM
-pub fn shr<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn shr<T, H: Host<T> + ?Sized, SPEC: Spec>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     check!(interpreter, CONSTANTINOPLE);
     gas!(interpreter, gas::VERYLOW);
     pop_top!(interpreter, op1, op2);
@@ -97,7 +149,11 @@ pub fn shr<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, _h
 }
 
 /// EIP-145: Bitwise shifting instructions in EVM
-pub fn sar<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn sar<T, H: Host<T> + ?Sized, SPEC: Spec>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     check!(interpreter, CONSTANTINOPLE);
     gas!(interpreter, gas::VERYLOW);
     pop_top!(interpreter, op1, op2);
@@ -207,7 +263,7 @@ mod tests {
             host.clear();
             push!(interpreter, test.value);
             push!(interpreter, test.shift);
-            shl::<u32, DummyHost, LatestSpec>(&mut interpreter, &mut host);
+            shl::<u32, DummyHost, LatestSpec>(&mut interpreter, &mut host, &mut u32::MAX);
             pop!(interpreter, res);
             assert_eq!(res, test.expected);
         }
@@ -288,7 +344,7 @@ mod tests {
             host.clear();
             push!(interpreter, test.value);
             push!(interpreter, test.shift);
-            shr::<u32, DummyHost, LatestSpec>(&mut interpreter, &mut host);
+            shr::<u32, DummyHost, LatestSpec>(&mut interpreter, &mut host, &mut u32::MAX);
             pop!(interpreter, res);
             assert_eq!(res, test.expected);
         }
@@ -394,7 +450,7 @@ mod tests {
             host.clear();
             push!(interpreter, test.value);
             push!(interpreter, test.shift);
-            sar::<u32, DummyHost, LatestSpec>(&mut interpreter, &mut host);
+            sar::<u32, DummyHost, LatestSpec>(&mut interpreter, &mut host, &mut u32::MAX);
             pop!(interpreter, res);
             assert_eq!(res, test.expected);
         }

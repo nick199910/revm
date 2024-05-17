@@ -22,7 +22,6 @@ impl<T, DB: Database, INSP: Inspector<T, DB>> GetInspector<T, DB> for INSP {
     }
 }
 
-
 /// Register Inspector handles that interact with Inspector instance.
 ///
 ///
@@ -37,8 +36,9 @@ impl<T, DB: Database, INSP: Inspector<T, DB>> GetInspector<T, DB> for INSP {
 /// `log` and `selfdestruct` calls.
 pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<T, DB>>(
     handler: &mut EvmHandler<'a, T, EXT, DB>,
-) where T: From<Box<dyn Any>>
- {
+) where
+    T: From<Box<dyn Any>>,
+{
     // Every instruction inside flat table that is going to be wrapped by inspector calls.
     let table = handler
         .take_instruction_table()
@@ -52,17 +52,18 @@ pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<T, DB>>(
             .into_iter()
             .map(|i| inspector_instruction(i))
             .collect::<Vec<_>>(),
-        InstructionTables::_Marker(_) => todo!(),
     };
 
     // Register inspector Log instruction.
     let mut inspect_log = |index: u8| {
         if let Some(i) = table.get_mut(index as usize) {
-            let old = core::mem::replace(i, Box::new(|_, _| ()));
+            let old = core::mem::replace(i, Box::new(|_, _, _| ()));
             *i = Box::new(
-                move |interpreter: &mut Interpreter, host: &mut Evm<'a, T, EXT, DB>| {
+                move |interpreter: &mut Interpreter,
+                      host: &mut Evm<'a, T, EXT, DB>,
+                      _additional: &mut T| {
                     let old_log_len = host.context.evm.journaled_state.logs.len();
-                    old(interpreter, host);
+                    old(interpreter, host, _additional);
                     // check if log was added. It is possible that revert happened
                     // cause of gas or stack underflow.
                     if host.context.evm.journaled_state.logs.len() == old_log_len + 1 {
@@ -96,11 +97,13 @@ pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<T, DB>>(
 
     // // register selfdestruct function.
     if let Some(i) = table.get_mut(opcode::SELFDESTRUCT as usize) {
-        let old = core::mem::replace(i, Box::new(|_, _| ()));
+        let old = core::mem::replace(i, Box::new(|_, _, _| ()));
         *i = Box::new(
-            move |interpreter: &mut Interpreter, host: &mut Evm<'a, T, EXT, DB>| {
+            move |interpreter: &mut Interpreter,
+                  host: &mut Evm<'a, T, EXT, DB>,
+                  _additional: &mut T| {
                 // execute selfdestruct
-                old(interpreter, host);
+                old(interpreter, host, _additional);
                 // check if selfdestruct was successful and if journal entry is made.
                 if let Some(JournalEntry::AccountDestroyed {
                     address,
@@ -144,7 +147,8 @@ pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<T, DB>>(
         move |ctx, mut inputs| -> Result<FrameOrResult, EVMError<DB::Error>> {
             let inspector = ctx.external.get_inspector();
             // call inspector create to change input or return outcome.
-            if let Some(outcome) = inspector.create(&mut ctx.evm, &mut inputs, &mut T::from(Box::new("a")))
+            if let Some(outcome) =
+                inspector.create(&mut ctx.evm, &mut inputs, &mut T::from(Box::new("a")))
             {
                 create_input_stack_inner.borrow_mut().push(inputs.clone());
                 return Ok(FrameOrResult::Result(FrameResult::Create(outcome)));
@@ -167,10 +171,11 @@ pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<T, DB>>(
     handler.execution.call = Arc::new(
         move |ctx, mut inputs| -> Result<FrameOrResult, EVMError<DB::Error>> {
             // Call inspector to change input or return outcome.
-            let outcome = ctx
-                .external
-                .get_inspector()
-                .call(&mut ctx.evm, &mut inputs, &mut T::from(Box::new(1)));
+            let outcome = ctx.external.get_inspector().call(
+                &mut ctx.evm,
+                &mut inputs,
+                &mut T::from(Box::new(1)),
+            );
             call_input_stack_inner.borrow_mut().push(inputs.clone());
             if let Some(outcome) = outcome {
                 return Ok(FrameOrResult::Result(FrameResult::Call(outcome)));
@@ -226,8 +231,12 @@ pub fn inspector_handle_register<'a, T, DB: Database, EXT: GetInspector<T, DB>>(
         match frame_result {
             FrameResult::Call(outcome) => {
                 let call_inputs = call_input_stack.borrow_mut().pop().unwrap();
-                *outcome =
-                    inspector.call_end(&mut ctx.evm, &call_inputs, outcome.clone(), &mut T::from(Box::new("test")));
+                *outcome = inspector.call_end(
+                    &mut ctx.evm,
+                    &call_inputs,
+                    outcome.clone(),
+                    &mut T::from(Box::new("test")),
+                );
             }
             FrameResult::Create(outcome) => {
                 let create_inputs = create_input_stack.borrow_mut().pop().unwrap();
@@ -254,22 +263,26 @@ pub fn inspector_instruction<
     T,
     INSP: GetInspector<T, DB>,
     DB: Database,
-    Instruction: Fn(&mut Interpreter, &mut Evm<'a, T, INSP, DB>) + 'a,
+    Instruction: Fn(&mut Interpreter, &mut Evm<'a, T, INSP, DB>, &mut T) + 'a,
 >(
     instruction: Instruction,
-) -> BoxedInstruction<'a, Evm<'a, T, INSP, DB>> 
-where T: From<Box<dyn Any>>
+) -> BoxedInstruction<'a, Evm<'a, T, INSP, DB>, T>
+where
+    T: From<Box<dyn Any>>,
 {
     Box::new(
-        move |interpreter: &mut Interpreter, host: &mut Evm<'a, T, INSP, DB>| {
+        move |interpreter: &mut Interpreter,
+              host: &mut Evm<'a, T, INSP, DB>,
+              _additional: &mut T| {
             // SAFETY: as the PC was already incremented we need to subtract 1 to preserve the
             // old Inspector behavior.
             interpreter.instruction_pointer = unsafe { interpreter.instruction_pointer.sub(1) };
 
-            host.context
-                .external
-                .get_inspector()
-                .step(interpreter, &mut host.context.evm, &mut T::from(Box::new(1)));
+            host.context.external.get_inspector().step(
+                interpreter,
+                &mut host.context.evm,
+                &mut T::from(Box::new(1)),
+            );
             if interpreter.instruction_result != InstructionResult::Continue {
                 return;
             }
@@ -278,7 +291,7 @@ where T: From<Box<dyn Any>>
             interpreter.instruction_pointer = unsafe { interpreter.instruction_pointer.add(1) };
 
             // execute instruction.
-            instruction(interpreter, host);
+            instruction(interpreter, host, _additional);
 
             host.context.external.get_inspector().step_end(
                 interpreter,
@@ -306,9 +319,9 @@ mod tests {
     #[test]
     fn test_make_boxed_instruction_table() {
         type MyEvm<'a> = Evm<'a, Box<dyn Any>, NoOpInspector, EmptyDB>;
-        let table: InstructionTable<MyEvm<'_>> =
+        let table: InstructionTable<MyEvm<'_>, Box<dyn Any>> =
             make_instruction_table::<Box<dyn Any>, MyEvm<'_>, BerlinSpec>();
-        let _boxed_table: BoxedInstructionTable<'_, MyEvm<'_>> =
+        let _boxed_table: BoxedInstructionTable<'_, MyEvm<'_>, Box<dyn Any>> =
             make_boxed_instruction_table::<'_, Box<dyn Any>, MyEvm<'_>, BerlinSpec, _>(
                 table,
                 inspector_instruction,
@@ -345,7 +358,12 @@ mod tests {
             self.step_end += 1;
         }
 
-        fn call(&mut self, context: &mut EvmContext<DB>, _call: &mut CallInputs, _additional_data: &mut T) -> Option<CallOutcome> {
+        fn call(
+            &mut self,
+            context: &mut EvmContext<DB>,
+            _call: &mut CallInputs,
+            _additional_data: &mut T,
+        ) -> Option<CallOutcome> {
             if self.call {
                 unreachable!("call should not be called twice")
             }

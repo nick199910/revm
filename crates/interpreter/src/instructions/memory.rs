@@ -5,7 +5,7 @@ use crate::{
 };
 use core::cmp::max;
 
-pub fn mload<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn mload<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H, _additional: &mut T) {
     gas!(interpreter, gas::VERYLOW);
     pop_top!(interpreter, top);
     let offset = as_usize_or_fail!(interpreter, top);
@@ -13,7 +13,7 @@ pub fn mload<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H
     *top = interpreter.shared_memory.get_u256(offset);
 }
 
-pub fn mstore<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn mstore<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H, _additional: &mut T) {
     gas!(interpreter, gas::VERYLOW);
     pop!(interpreter, offset, value);
     let offset = as_usize_or_fail!(interpreter, offset);
@@ -21,7 +21,7 @@ pub fn mstore<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut 
     interpreter.shared_memory.set_u256(offset, value);
 }
 
-pub fn mstore8<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn mstore8<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H, _additional: &mut T) {
     gas!(interpreter, gas::VERYLOW);
     pop!(interpreter, offset, value);
     let offset = as_usize_or_fail!(interpreter, offset);
@@ -29,13 +29,13 @@ pub fn mstore8<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut
     interpreter.shared_memory.set_byte(offset, value.byte(0))
 }
 
-pub fn msize<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn msize<T, H:Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H, _additional: &mut T) {
     gas!(interpreter, gas::BASE);
     push!(interpreter, U256::from(interpreter.shared_memory.len()));
 }
 
 // EIP-5656: MCOPY - Memory copying instruction
-pub fn mcopy<T, H:Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn mcopy<T, H:Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, _host: &mut H, _additional: &mut T) {
     check!(interpreter, CANCUN);
     pop!(interpreter, dst, src, len);
 

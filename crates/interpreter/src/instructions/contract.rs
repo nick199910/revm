@@ -11,10 +11,14 @@ use crate::{
     instructions::utility::read_u16,
     interpreter::Interpreter,
     primitives::{Address, Bytes, Eof, Spec, SpecId::*, B256, U256},
-    CallInputs, CallScheme, CallValue, CreateInputs, CreateScheme, EOFCreateInput, Host,
-    InstructionResult, InterpreterAction, InterpreterResult, LoadAccountResult, MAX_INITCODE_SIZE,
+    return_ok, return_revert, CallInputs, CallScheme, CallValue, CreateInputs, CreateScheme,
+    EOFCreateInput, Host, InstructionResult, InterpreterAction, InterpreterResult,
+    LoadAccountResult, MAX_INITCODE_SIZE,
 };
-use core::{cmp::max, ops::Range};
+use core::{
+    cmp::{max, min},
+    ops::Range,
+};
 use std::boxed::Box;
 
 /// Resize memory and return memory range if successful.
@@ -38,7 +42,11 @@ pub fn resize_memory(
 }
 
 /// EOF Create instruction
-pub fn eofcreate<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn eofcreate<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     require_eof!(interpreter);
     gas!(interpreter, EOF_CREATE_GAS);
     let initcontainer_index = unsafe { *interpreter.instruction_pointer };
@@ -91,7 +99,11 @@ pub fn eofcreate<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &
     interpreter.instruction_pointer = unsafe { interpreter.instruction_pointer.offset(1) };
 }
 
-pub fn txcreate<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, host: &mut H) {
+pub fn txcreate<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    host: &mut H,
+    _additional: &mut T,
+) {
     require_eof!(interpreter);
     gas!(interpreter, EOF_CREATE_GAS);
     pop!(
@@ -170,7 +182,11 @@ pub fn txcreate<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, host: &mu
     interpreter.instruction_result = InstructionResult::CallOrCreate;
 }
 
-pub fn return_contract<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn return_contract<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     require_init_eof!(interpreter);
     let deploy_container_index = unsafe { read_u16(interpreter.instruction_pointer) };
     pop!(interpreter, aux_data_offset, aux_data_size);
@@ -279,7 +295,11 @@ pub fn extcall_gas_calc<T, H: Host<T> + ?Sized>(
     Some(gas_limit)
 }
 
-pub fn extcall<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: &mut H) {
+pub fn extcall<T, H: Host<T> + ?Sized, SPEC: Spec>(
+    interpreter: &mut Interpreter,
+    host: &mut H,
+    _additional: &mut T,
+) {
     require_eof!(interpreter);
     pop_address!(interpreter, target_address);
 
@@ -314,7 +334,11 @@ pub fn extcall<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter
     interpreter.instruction_result = InstructionResult::CallOrCreate;
 }
 
-pub fn extdcall<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interpreter, host: &mut H) {
+pub fn extdcall<T, H: Host<T> + ?Sized, SPEC: Spec>(
+    interpreter: &mut Interpreter,
+    host: &mut H,
+    _additional: &mut T,
+) {
     require_eof!(interpreter);
     pop_address!(interpreter, target_address);
 
@@ -347,7 +371,11 @@ pub fn extdcall<T, H: Host<T> + ?Sized, SPEC: Spec>(interpreter: &mut Interprete
     interpreter.instruction_result = InstructionResult::CallOrCreate;
 }
 
-pub fn extscall<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, host: &mut H) {
+pub fn extscall<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    host: &mut H,
+    _additional: &mut T,
+) {
     require_eof!(interpreter);
     pop_address!(interpreter, target_address);
 
@@ -381,7 +409,7 @@ pub fn extscall<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, host: &mu
 pub fn create<const IS_CREATE2: bool, T, H: Host<T> + ?Sized, SPEC: Spec>(
     interpreter: &mut Interpreter,
     host: &mut H,
-    // additional_data: &mut T,
+    _additional_data: &mut T,
 ) {
     require_non_staticcall!(interpreter);
 
@@ -442,17 +470,59 @@ pub fn create<const IS_CREATE2: bool, T, H: Host<T> + ?Sized, SPEC: Spec>(
             caller: interpreter.contract.target_address,
             scheme,
             value,
-            init_code: code,
+            init_code: code.clone(),
             gas_limit,
         }),
     };
-    interpreter.instruction_result = InstructionResult::CallOrCreate;
+
+    let mut create_input = CreateInputs {
+        caller: interpreter.contract.target_address,
+        scheme,
+        value,
+        init_code: code,
+        gas_limit,
+    };
+
+    let create_out_put = host.create(&mut create_input, _additional_data);
+    interpreter.return_data_buffer = match create_out_put.instruction_result() {
+        // Save data to return data buffer if the create reverted
+        return_revert!() => create_out_put.output().clone(),
+        // Otherwise clear it
+        _ => Bytes::new(),
+    };
+
+    match create_out_put.instruction_result() {
+        return_ok!() => {
+            push_b256!(
+                interpreter,
+                create_out_put.address.unwrap_or_default().into_word()
+            );
+            // if crate::USE_GAS {
+            //     interpreter.gas.erase_cost(gas.remaining());
+            //     interpreter.gas.record_refund(gas.refunded());
+            // }
+        }
+        return_revert!() => {
+            push_b256!(interpreter, B256::ZERO);
+            // if crate::USE_GAS {
+            //     interpreter.gas.erase_cost(gas.remaining());
+            // }
+        }
+        InstructionResult::FatalExternalError => {
+            interpreter.instruction_result = InstructionResult::FatalExternalError;
+        }
+        _ => {
+            push_b256!(interpreter, B256::ZERO);
+        }
+    }
+    interpreter.instruction_result = create_out_put.instruction_result().clone();
+    // interpreter.instruction_result = InstructionResult::CallOrCreate;
 }
 
 pub fn call<T, H: Host<T> + ?Sized, SPEC: Spec>(
     interpreter: &mut Interpreter,
     host: &mut H,
-    // additional_data: &mut T,
+    _additional_data: &mut T,
 ) {
     pop!(interpreter, local_gas_limit);
     pop_address!(interpreter, to);
@@ -494,7 +564,7 @@ pub fn call<T, H: Host<T> + ?Sized, SPEC: Spec>(
     // Call host to interact with target contract
     interpreter.next_action = InterpreterAction::Call {
         inputs: Box::new(CallInputs {
-            input,
+            input: input.clone(),
             gas_limit,
             target_address: to,
             caller: interpreter.contract.target_address,
@@ -503,16 +573,68 @@ pub fn call<T, H: Host<T> + ?Sized, SPEC: Spec>(
             scheme: CallScheme::Call,
             is_static: interpreter.is_static,
             is_eof: false,
-            return_memory_offset,
+            return_memory_offset: return_memory_offset.clone(),
         }),
     };
-    interpreter.instruction_result = InstructionResult::CallOrCreate;
+
+    // Call host to interuct with target contract
+    let (out_offset, out_len) = (return_memory_offset.start, return_memory_offset.end);
+
+    let mut call_input = CallInputs {
+        input,
+        gas_limit,
+        target_address: to,
+        caller: interpreter.contract.target_address,
+        bytecode_address: to,
+        value: CallValue::Transfer(value),
+        scheme: CallScheme::Call,
+        is_static: interpreter.is_static,
+        is_eof: false,
+        return_memory_offset,
+    };
+
+    let call_out_come = host.call(
+        &mut call_input,
+        interpreter,
+        (out_offset, out_len),
+        _additional_data,
+    );
+    interpreter.return_data_buffer = call_out_come.output().clone();
+
+    let target_len = min(out_len, interpreter.return_data_buffer.len());
+
+    let reason = call_out_come.instruction_result().clone();
+    match reason {
+        return_ok!() => {
+            interpreter
+                .shared_memory
+                .set(out_offset, &interpreter.return_data_buffer[..target_len]);
+            push!(interpreter, U256::from(1));
+        }
+        return_revert!() => {
+            interpreter
+                .shared_memory
+                .set(out_offset, &interpreter.return_data_buffer[..target_len]);
+            push!(interpreter, U256::ZERO);
+        }
+        InstructionResult::FatalExternalError
+        | InstructionResult::ControlLeak
+        | InstructionResult::ArbitraryExternalCallAddressBounded(_, _, _)
+        | InstructionResult::AddressUnboundedStaticCall => {
+            interpreter.instruction_result = reason;
+        }
+        _ => {
+            push!(interpreter, U256::ZERO);
+        }
+    }
+
+    interpreter.instruction_result = reason;
 }
 
 pub fn call_code<T, H: Host<T> + ?Sized, SPEC: Spec>(
     interpreter: &mut Interpreter,
     host: &mut H,
-    // additional_data: &mut T,
+    _additional_data: &mut T,
 ) {
     pop!(interpreter, local_gas_limit);
     pop_address!(interpreter, to);
@@ -549,7 +671,7 @@ pub fn call_code<T, H: Host<T> + ?Sized, SPEC: Spec>(
     // Call host to interact with target contract
     interpreter.next_action = InterpreterAction::Call {
         inputs: Box::new(CallInputs {
-            input,
+            input: input.clone(),
             gas_limit,
             target_address: interpreter.contract.target_address,
             caller: interpreter.contract.target_address,
@@ -558,16 +680,68 @@ pub fn call_code<T, H: Host<T> + ?Sized, SPEC: Spec>(
             scheme: CallScheme::CallCode,
             is_static: interpreter.is_static,
             is_eof: false,
-            return_memory_offset,
+            return_memory_offset: return_memory_offset.clone(),
         }),
     };
-    interpreter.instruction_result = InstructionResult::CallOrCreate;
+
+    let (out_offset, out_len) = (return_memory_offset.start, return_memory_offset.end);
+
+    let mut call_input = CallInputs {
+        input,
+        gas_limit,
+        target_address: to,
+        caller: interpreter.contract.target_address,
+        bytecode_address: to,
+        value: CallValue::Transfer(value),
+        scheme: CallScheme::CallCode,
+        is_static: interpreter.is_static,
+        is_eof: false,
+        return_memory_offset,
+    };
+
+    let call_out_come = host.call(
+        &mut call_input,
+        interpreter,
+        (out_offset, out_len),
+        _additional_data,
+    );
+    interpreter.return_data_buffer = call_out_come.output().clone();
+
+    let target_len = min(out_len, interpreter.return_data_buffer.len());
+
+    let reason = call_out_come.instruction_result().clone();
+    match reason {
+        return_ok!() => {
+            interpreter
+                .shared_memory
+                .set(out_offset, &interpreter.return_data_buffer[..target_len]);
+            push!(interpreter, U256::from(1));
+        }
+        return_revert!() => {
+            interpreter
+                .shared_memory
+                .set(out_offset, &interpreter.return_data_buffer[..target_len]);
+            push!(interpreter, U256::ZERO);
+        }
+        InstructionResult::FatalExternalError
+        | InstructionResult::ControlLeak
+        | InstructionResult::ArbitraryExternalCallAddressBounded(_, _, _)
+        | InstructionResult::AddressUnboundedStaticCall => {
+            interpreter.instruction_result = reason;
+        }
+        _ => {
+            push!(interpreter, U256::ZERO);
+        }
+    }
+
+    interpreter.instruction_result = reason;
+    // interpreter.instruction_result = InstructionResult::CallOrCreate;
 }
 
 pub fn delegate_call<T, H: Host<T> + ?Sized, SPEC: Spec>(
     interpreter: &mut Interpreter,
     host: &mut H,
-    // additional_data: &mut T,
+    _additional_data: &mut T,
 ) {
     check!(interpreter, HOMESTEAD);
     pop!(interpreter, local_gas_limit);
@@ -594,7 +768,7 @@ pub fn delegate_call<T, H: Host<T> + ?Sized, SPEC: Spec>(
     // Call host to interact with target contract
     interpreter.next_action = InterpreterAction::Call {
         inputs: Box::new(CallInputs {
-            input,
+            input: input.clone(),
             gas_limit,
             target_address: interpreter.contract.target_address,
             caller: interpreter.contract.caller,
@@ -603,15 +777,67 @@ pub fn delegate_call<T, H: Host<T> + ?Sized, SPEC: Spec>(
             scheme: CallScheme::DelegateCall,
             is_static: interpreter.is_static,
             is_eof: false,
-            return_memory_offset,
+            return_memory_offset: return_memory_offset.clone(),
         }),
     };
-    interpreter.instruction_result = InstructionResult::CallOrCreate;
+    let (out_offset, out_len) = (return_memory_offset.start, return_memory_offset.end);
+
+    let mut call_input = CallInputs {
+        input,
+        gas_limit,
+        target_address: interpreter.contract.target_address,
+        caller: interpreter.contract.caller,
+        bytecode_address: to,
+        value: CallValue::Apparent(interpreter.contract.call_value),
+        scheme: CallScheme::DelegateCall,
+        is_static: interpreter.is_static,
+        is_eof: false,
+        return_memory_offset,
+    };
+
+    let call_out_come = host.call(
+        &mut call_input,
+        interpreter,
+        (out_offset, out_len),
+        _additional_data,
+    );
+    interpreter.return_data_buffer = call_out_come.output().clone();
+
+    let target_len = min(out_len, interpreter.return_data_buffer.len());
+
+    let reason = call_out_come.instruction_result().clone();
+    match reason {
+        return_ok!() => {
+            interpreter
+                .shared_memory
+                .set(out_offset, &interpreter.return_data_buffer[..target_len]);
+            push!(interpreter, U256::from(1));
+        }
+        return_revert!() => {
+            interpreter
+                .shared_memory
+                .set(out_offset, &interpreter.return_data_buffer[..target_len]);
+            push!(interpreter, U256::ZERO);
+        }
+        InstructionResult::FatalExternalError
+        | InstructionResult::ControlLeak
+        | InstructionResult::ArbitraryExternalCallAddressBounded(_, _, _)
+        | InstructionResult::AddressUnboundedStaticCall => {
+            interpreter.instruction_result = reason;
+        }
+        _ => {
+            push!(interpreter, U256::ZERO);
+        }
+    }
+
+    interpreter.instruction_result = reason;
+    // interpreter.instruction_result = InstructionResult::CallOrCreate;
 }
 
 pub fn static_call<T, H: Host<T> + ?Sized, SPEC: Spec>(
     interpreter: &mut Interpreter,
     host: &mut H,
+    _additional_data: &mut T,
 ) {
     check!(interpreter, BYZANTIUM);
     pop!(interpreter, local_gas_limit);
@@ -638,7 +864,7 @@ pub fn static_call<T, H: Host<T> + ?Sized, SPEC: Spec>(
     // Call host to interact with target contract
     interpreter.next_action = InterpreterAction::Call {
         inputs: Box::new(CallInputs {
-            input,
+            input: input.clone(),
             gas_limit,
             target_address: to,
             caller: interpreter.contract.target_address,
@@ -647,8 +873,61 @@ pub fn static_call<T, H: Host<T> + ?Sized, SPEC: Spec>(
             scheme: CallScheme::StaticCall,
             is_static: true,
             is_eof: false,
-            return_memory_offset,
+            return_memory_offset: return_memory_offset.clone(),
         }),
     };
-    interpreter.instruction_result = InstructionResult::CallOrCreate;
+
+    let (out_offset, out_len) = (return_memory_offset.start, return_memory_offset.end);
+
+    let mut call_input = CallInputs {
+        input,
+        gas_limit,
+        target_address: to,
+        caller: interpreter.contract.target_address,
+        bytecode_address: to,
+        value: CallValue::Transfer(U256::ZERO),
+        scheme: CallScheme::StaticCall,
+        is_static: true,
+        is_eof: false,
+        return_memory_offset,
+    };
+
+    let call_out_come = host.call(
+        &mut call_input,
+        interpreter,
+        (out_offset, out_len),
+        _additional_data,
+    );
+    interpreter.return_data_buffer = call_out_come.output().clone();
+
+    let target_len = min(out_len, interpreter.return_data_buffer.len());
+
+    let reason = call_out_come.instruction_result().clone();
+    match reason {
+        return_ok!() => {
+            interpreter
+                .shared_memory
+                .set(out_offset, &interpreter.return_data_buffer[..target_len]);
+            push!(interpreter, U256::from(1));
+        }
+        return_revert!() => {
+            interpreter
+                .shared_memory
+                .set(out_offset, &interpreter.return_data_buffer[..target_len]);
+            push!(interpreter, U256::ZERO);
+        }
+        InstructionResult::FatalExternalError
+        | InstructionResult::ControlLeak
+        | InstructionResult::ArbitraryExternalCallAddressBounded(_, _, _)
+        | InstructionResult::AddressUnboundedStaticCall => {
+            interpreter.instruction_result = reason;
+        }
+        _ => {
+            push!(interpreter, U256::ZERO);
+        }
+    }
+
+    interpreter.instruction_result = reason;
+
+    // interpreter.instruction_result = InstructionResult::CallOrCreate;
 }

@@ -4,11 +4,11 @@ use revm::{
     Evm,
 };
 
-use std::time::Duration;
+use std::{any::Any, time::Duration};
 
 fn main() {
     // BenchmarkDB is dummy state that implements Database trait.
-    let mut evm: Evm<'_, u32, (), BenchmarkDB> = Evm::builder()
+    let mut evm: Evm<'_, Box<dyn Any>, (), BenchmarkDB> = Evm::builder()
         .with_db(BenchmarkDB::new_bytecode(Bytecode::new()))
         .modify_tx_env(|tx| {
             // execution globals block hash/gas_limit/coinbase/timestamp..

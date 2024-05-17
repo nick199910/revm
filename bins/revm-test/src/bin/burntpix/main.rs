@@ -15,7 +15,7 @@ use static_data::{
     STORAGE_ONE, STORAGE_TWO, STORAGE_ZERO,
 };
 
-use std::fs::File;
+use std::{any::Any, fs::File};
 use std::{error::Error, time::Instant};
 
 use std::{io::Write, str::FromStr};
@@ -35,7 +35,7 @@ fn main() {
 
     let db = init_db();
 
-    let mut evm: Evm<u32, (), CacheDB<revm::db::EmptyDBTyped<std::convert::Infallible>>> =
+    let mut evm: Evm<Box<dyn Any>, (), CacheDB<revm::db::EmptyDBTyped<std::convert::Infallible>>> =
         Evm::builder()
             .modify_tx_env(|tx| {
                 tx.caller = address!("1000000000000000000000000000000000000000");

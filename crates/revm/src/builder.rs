@@ -454,7 +454,7 @@ mod test {
         assert_eq!(*custom_context.inner.borrow(), 0);
 
         let to_capture = custom_context.clone();
-        let mut evm = Evm::<u32, (), EmptyDBTyped<Infallible>>::builder()
+        let mut evm = Evm::<Box<dyn Any>, (), EmptyDBTyped<Infallible>>::builder()
             .with_db(InMemoryDB::default())
             .modify_db(|db| {
                 db.insert_account_info(to_addr, AccountInfo::new(U256::ZERO, 0, code_hash, code))
@@ -467,7 +467,9 @@ mod test {
 
                 // we need to use a box to capture the custom context in the instruction
                 let custom_instruction = Box::new(
-                    move |_interp: &mut Interpreter, _host: &mut Evm<'_, u32, (), InMemoryDB>| {
+                    move |_interp: &mut Interpreter,
+                          _host: &mut Evm<'_, Box<dyn Any>, (), InMemoryDB>,
+                          _additional: &mut Box<dyn Any>| {
                         // modify the value
                         let mut inner = custom_context.inner.borrow_mut();
                         *inner += 1;
@@ -497,7 +499,11 @@ mod test {
         const CUSTOM_INSTRUCTION_COST: u64 = 133;
         const INITIAL_TX_GAS: u64 = 21000;
         const EXPECTED_RESULT_GAS: u64 = INITIAL_TX_GAS + CUSTOM_INSTRUCTION_COST;
-        fn custom_instruction(interp: &mut Interpreter, _host: &mut impl Host<Box<dyn Any>>) {
+        fn custom_instruction(
+            interp: &mut Interpreter,
+            _host: &mut impl Host<Box<dyn Any>>,
+            _additional: &mut Box<dyn Any>,
+        ) {
             // just spend some gas
             interp.gas.record_cost(CUSTOM_INSTRUCTION_COST);
         }

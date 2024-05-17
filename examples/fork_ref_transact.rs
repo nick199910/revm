@@ -6,7 +6,7 @@ use revm::{
     primitives::{address, ExecutionResult, Output, TransactTo, U256},
     Database, Evm,
 };
-use std::sync::Arc;
+use std::{any::Any, sync::Arc};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -64,7 +64,7 @@ async fn main() -> anyhow::Result<()> {
         .unwrap();
 
     // initialise an empty (default) EVM
-    let mut evm: Evm<u32, (), CacheDB<revm::db::EmptyDBTyped<std::convert::Infallible>>> =
+    let mut evm: Evm<Box<dyn Any>, (), CacheDB<revm::db::EmptyDBTyped<std::convert::Infallible>>> =
         Evm::builder()
             .with_db(cache_db)
             .modify_tx_env(|tx| {

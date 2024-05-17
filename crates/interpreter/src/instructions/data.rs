@@ -6,7 +6,11 @@ use crate::{
     Host,
 };
 
-pub fn data_load<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn data_load<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     require_eof!(interpreter);
     gas!(interpreter, DATA_LOAD_GAS);
     pop_top!(interpreter, offset);
@@ -26,7 +30,11 @@ pub fn data_load<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &
     *offset = U256::from_be_bytes(word);
 }
 
-pub fn data_loadn<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn data_loadn<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     require_eof!(interpreter);
     gas!(interpreter, VERYLOW);
     let offset = unsafe { read_u16(interpreter.instruction_pointer) } as usize;
@@ -47,7 +55,11 @@ pub fn data_loadn<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: 
     interpreter.instruction_pointer = unsafe { interpreter.instruction_pointer.offset(2) };
 }
 
-pub fn data_size<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn data_size<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     require_eof!(interpreter);
     gas!(interpreter, BASE);
     let data_size = interpreter.eof().expect("eof").header.data_size;
@@ -55,7 +67,11 @@ pub fn data_size<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &
     push!(interpreter, U256::from(data_size));
 }
 
-pub fn data_copy<T, H: Host<T> + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn data_copy<T, H: Host<T> + ?Sized>(
+    interpreter: &mut Interpreter,
+    _host: &mut H,
+    _additional: &mut T,
+) {
     require_eof!(interpreter);
     gas!(interpreter, VERYLOW);
     pop!(interpreter, mem_offset, offset, size);
@@ -118,18 +134,18 @@ mod test {
 
         // DATALOAD
         interp.stack.push(U256::from(0)).unwrap();
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.stack.data(), &vec![U256::from(0x01)]);
         interp.stack.pop().unwrap();
 
         // DATALOADN
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.stack.data(), &vec![U256::from(0x01)]);
         interp.stack.pop().unwrap();
 
         // DATALOAD (padding)
         interp.stack.push(U256::from(35)).unwrap();
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(
             interp.stack.data(),
             &vec![b256!("0500000000000000000000000000000000000000000000000000000000000000").into()]
@@ -137,7 +153,7 @@ mod test {
         interp.stack.pop().unwrap();
 
         // DATALOADN (padding)
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(
             interp.stack.data(),
             &vec![b256!("0500000000000000000000000000000000000000000000000000000000000000").into()]
@@ -146,17 +162,17 @@ mod test {
 
         // DATALOAD (out of bounds)
         interp.stack.push(U256::from(36)).unwrap();
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.stack.data(), &vec![U256::ZERO]);
         interp.stack.pop().unwrap();
 
         // DATALOADN (out of bounds)
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.stack.data(), &vec![U256::ZERO]);
         interp.stack.pop().unwrap();
 
         // DATA SIZE
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(interp.stack.data(), &vec![U256::from(36)]);
     }
 
@@ -174,7 +190,7 @@ mod test {
         interp.stack.push(U256::from(32)).unwrap();
         interp.stack.push(U256::from(0)).unwrap();
         interp.stack.push(U256::from(0)).unwrap();
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(
             interp.shared_memory.context_memory(),
             &bytes!("0000000000000000000000000000000000000000000000000000000000000001")
@@ -185,7 +201,7 @@ mod test {
         interp.stack.push(U256::from(2)).unwrap();
         interp.stack.push(U256::from(35)).unwrap();
         interp.stack.push(U256::from(1)).unwrap();
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(
             interp.shared_memory.context_memory(),
             &bytes!("0005000000000000000000000000000000000000000000000000000000000001")
@@ -196,7 +212,7 @@ mod test {
         interp.stack.push(U256::from(2)).unwrap();
         interp.stack.push(U256::from(37)).unwrap();
         interp.stack.push(U256::from(1)).unwrap();
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(
             interp.shared_memory.context_memory(),
             &bytes!("0000000000000000000000000000000000000000000000000000000000000001")
@@ -207,7 +223,7 @@ mod test {
         interp.stack.push(U256::from(0)).unwrap();
         interp.stack.push(U256::from(37)).unwrap();
         interp.stack.push(U256::from(1)).unwrap();
-        interp.step(&table, &mut host);
+        interp.step(&table, &mut host, &mut u32::MAX);
         assert_eq!(
             interp.shared_memory.context_memory(),
             &bytes!("0000000000000000000000000000000000000000000000000000000000000001")

@@ -6,7 +6,6 @@ use crate::primitives::{
 use core::mem;
 use revm_interpreter::primitives::SpecId;
 use revm_interpreter::{LoadAccountResult, SStoreResult};
-use std::sync::Arc;
 use std::vec::Vec;
 
 /// JournalState is internal EVM state that is used to contain state and track changes to that state.

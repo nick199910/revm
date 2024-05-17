@@ -13,8 +13,9 @@ use crate::{
     },
     Context, ContextWithHandlerCfg, Frame, FrameOrResult, FrameResult,
 };
-use core::fmt;
-use revm_interpreter::{CallInputs, CreateInputs};
+use core::{any::Any, fmt};
+use revm_interpreter::{CallInputs, CallOutcome, CreateInputs, Gas, InterpreterResult};
+use revm_precompile::Bytes;
 use std::{sync::Arc, vec::Vec};
 
 /// EVM call stack limit.
@@ -43,7 +44,7 @@ where
     }
 }
 
-impl<T, EXT, DB: Database + DatabaseCommit> Evm<'_, T, EXT, DB> {
+impl<T: From<Box<dyn Any>>, EXT, DB: Database + DatabaseCommit> Evm<'_, T, EXT, DB> {
     /// Commit the changes to the database.
     pub fn transact_commit(&mut self) -> Result<ExecutionResult, EVMError<DB::Error>> {
         let ResultAndState { result, state } = self.transact()?;
@@ -76,7 +77,22 @@ impl<'a, T, EXT, DB: Database> Evm<'a, T, EXT, DB> {
     }
 }
 
-impl<T, EXT, DB: Database> Evm<'_, T, EXT, DB> {
+#[derive(Debug)]
+struct MyType {
+    value: u32,
+}
+
+impl From<Box<dyn Any>> for MyType {
+    fn from(boxed: Box<dyn Any>) -> Self {
+        if let Ok(value) = boxed.downcast::<u32>() {
+            MyType { value: *value }
+        } else {
+            panic!("Expected a Box containing a u32");
+        }
+    }
+}
+
+impl<T: From<Box<dyn Any>>, EXT, DB: Database> Evm<'_, T, EXT, DB> {
     /// Returns specification (hardfork) that the EVM is instanced with.
     ///
     /// SpecId depends on the handler.
@@ -227,7 +243,6 @@ impl<T, EXT, DB: Database> Evm<'_, T, EXT, DB> {
         let frame_result = match &table {
             InstructionTables::Plain(table) => self.run_the_loop(table, first_frame),
             InstructionTables::Boxed(table) => self.run_the_loop(table, first_frame),
-            InstructionTables::_Marker(_) => todo!(),
         };
 
         // return back instruction table
@@ -244,7 +259,7 @@ impl<T, EXT, DB: Database> Evm<'_, T, EXT, DB> {
         first_frame: Frame,
     ) -> Result<FrameResult, EVMError<DB::Error>>
     where
-        FN: Fn(&mut Interpreter, &mut Self),
+        FN: Fn(&mut Interpreter, &mut Self, &mut T),
     {
         let mut call_stack: Vec<Frame> = Vec::with_capacity(1025);
         call_stack.push(first_frame);
@@ -263,7 +278,12 @@ impl<T, EXT, DB: Database> Evm<'_, T, EXT, DB> {
         loop {
             // run interpreter
             let interpreter = &mut stack_frame.frame_data_mut().interpreter;
-            let next_action = interpreter.run(shared_memory, instruction_table, self);
+
+            // 示例：将 Box<dyn Any> 转换为 T
+            let boxed_value: Box<dyn Any> = Box::new(42_u32);
+            let mut value = T::from(boxed_value);
+
+            let next_action = interpreter.run(shared_memory, self, instruction_table, &mut value);
 
             // take error and break the loop if there is any.
             // This error is set From Interpreter when it's interacting with Host.
@@ -503,6 +523,13 @@ impl<T, EXT, DB: Database> Host<T> for Evm<'_, T, EXT, DB> {
         output_info: (usize, usize),
         additional_data: &mut T,
     ) -> revm_interpreter::CallOutcome {
-        todo!()
+        CallOutcome {
+            result: InterpreterResult {
+                result: revm_interpreter::InstructionResult::Continue,
+                output: Bytes::default(),
+                gas: Gas::default(),
+            },
+            memory_offset: 0..0,
+        }
     }
 }

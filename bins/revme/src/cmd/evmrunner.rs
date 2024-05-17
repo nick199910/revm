@@ -3,9 +3,9 @@ use revm::{
     primitives::{Address, Bytecode, TransactTo},
     Evm,
 };
-use std::io::Error as IoError;
 use std::path::PathBuf;
 use std::time::Duration;
+use std::{any::Any, io::Error as IoError};
 use std::{borrow::Cow, fs};
 use structopt::StructOpt;
 
@@ -72,7 +72,7 @@ impl Cmd {
             .into();
         // BenchmarkDB is dummy state that implements Database trait.
         // the bytecode is deployed at zero address.
-        let mut evm: Evm<'_, u32, (), BenchmarkDB> = Evm::builder()
+        let mut evm: Evm<'_, Box<dyn Any>, (), BenchmarkDB> = Evm::builder()
             .with_db(BenchmarkDB::new_bytecode(Bytecode::new_raw(
                 bytecode.into(),
             )))
