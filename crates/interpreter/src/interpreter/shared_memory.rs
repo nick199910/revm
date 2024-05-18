@@ -61,9 +61,13 @@ impl SharedMemory {
     /// Creates a new memory instance that can be shared between calls.
     ///
     /// The default initial capacity is 4KiB.
+    ///
     #[inline]
     pub fn new() -> Self {
-        Self::with_capacity(4 * 1024) // from evmone
+        // Self::with_capacity(4 * 1024) // from evmone
+        /// ityfuzz
+        const ITYFUZZ_MEM_LIMIT: usize = 500 * 1024;
+        Self::with_capacity(ITYFUZZ_MEM_LIMIT) // from ityfuzz
     }
 
     /// Creates a new memory instance that can be shared between calls with the given `capacity`.
