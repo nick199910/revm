@@ -411,7 +411,7 @@ impl Interpreter {
                         .output
                 }
             } else {
-                println!("{:?}", self.instruction_result);
+                // println!("{:?}", self.instruction_result);
                 break;
             }
         }
