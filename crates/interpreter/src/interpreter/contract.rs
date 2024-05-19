@@ -24,6 +24,8 @@ pub struct Contract {
     pub caller: Address,
     /// Value send to contract from transaction or from CALL opcodes.
     pub call_value: U256,
+
+    pub bytecode_address: Address,
 }
 
 impl Contract {
@@ -36,6 +38,7 @@ impl Contract {
         target_address: Address,
         caller: Address,
         call_value: U256,
+        bytecode_address: Address,
     ) -> Self {
         let bytecode = to_analysed(bytecode);
         Self {
@@ -45,6 +48,7 @@ impl Contract {
             target_address,
             caller,
             call_value,
+            bytecode_address,
         }
     }
 
@@ -62,6 +66,7 @@ impl Contract {
             contract_address,
             env.tx.caller,
             env.tx.value,
+            contract_address,
         )
     }
 
@@ -80,6 +85,7 @@ impl Contract {
             call_context.target_address,
             call_context.caller,
             call_context.call_value(),
+            call_context.bytecode_address,
         )
     }
 

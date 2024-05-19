@@ -127,6 +127,7 @@ impl Interpreter {
                 crate::primitives::Address::default(),
                 crate::primitives::Address::default(),
                 U256::ZERO,
+                crate::primitives::Address::default(),
             ),
             0,
             false,
@@ -478,6 +479,7 @@ mod tests {
             target,
             Address::default(),
             U256::ZERO,
+            target,
         );
         let mut interp = Interpreter::new(call, u64::MAX, false);
 
@@ -523,6 +525,7 @@ mod tests {
             target,
             Address::default(),
             U256::ZERO,
+            target,
         );
         let mut interp = Interpreter::new(call, u64::MAX, true);
 

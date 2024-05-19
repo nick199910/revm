@@ -286,6 +286,7 @@ impl<DB: Database> InnerEvmContext<DB> {
             inputs.created_address,
             inputs.caller,
             inputs.value,
+            inputs.created_address,
         );
 
         let mut interpreter = Interpreter::new(contract, inputs.gas_limit, false);
@@ -409,6 +410,7 @@ impl<DB: Database> InnerEvmContext<DB> {
             created_address,
             inputs.caller,
             inputs.value,
+            created_address,
         );
 
         Ok(FrameOrResult::new_create_frame(
