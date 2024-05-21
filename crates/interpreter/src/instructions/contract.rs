@@ -632,7 +632,7 @@ pub fn call<T, H: Host<T> + ?Sized, SPEC: Spec>(
         }
     }
 
-    interpreter.instruction_result = reason;
+    // interpreter.instruction_result = reason;
 }
 
 pub fn call_code<T, H: Host<T> + ?Sized, SPEC: Spec>(
@@ -742,7 +742,7 @@ pub fn call_code<T, H: Host<T> + ?Sized, SPEC: Spec>(
         }
     }
 
-    interpreter.instruction_result = reason;
+    // interpreter.instruction_result = reason;
     // interpreter.instruction_result = InstructionResult::CallOrCreate;
 }
 
@@ -843,7 +843,7 @@ pub fn delegate_call<T, H: Host<T> + ?Sized, SPEC: Spec>(
         }
     }
 
-    interpreter.instruction_result = reason;
+    // interpreter.instruction_result = reason;
     // interpreter.instruction_result = InstructionResult::CallOrCreate;
 }
 
@@ -944,7 +944,6 @@ pub fn static_call<T, H: Host<T> + ?Sized, SPEC: Spec>(
         }
     }
 
-    interpreter.instruction_result = reason;
-
+    // interpreter.instruction_result = reason;
     // interpreter.instruction_result = InstructionResult::CallOrCreate;
 }
