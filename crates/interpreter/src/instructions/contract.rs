@@ -515,7 +515,7 @@ pub fn create<const IS_CREATE2: bool, T, H: Host<T> + ?Sized, SPEC: Spec>(
             push_b256!(interpreter, B256::ZERO);
         }
     }
-    interpreter.instruction_result = create_out_put.instruction_result().clone();
+    // interpreter.instruction_result = create_out_put.instruction_result().clone();
     // interpreter.instruction_result = InstructionResult::CallOrCreate;
 }
 
