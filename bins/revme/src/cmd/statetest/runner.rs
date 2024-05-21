@@ -16,10 +16,15 @@ use revm::{
 };
 use serde_json::json;
 use std::{
-    any::Any, convert::Infallible, io::{stderr, stdout}, path::{Path, PathBuf}, sync::{
+    any::Any,
+    convert::Infallible,
+    io::{stderr, stdout},
+    path::{Path, PathBuf},
+    sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc, Mutex,
-    }, time::{Duration, Instant}
+    },
+    time::{Duration, Instant},
 };
 use thiserror::Error;
 use walkdir::{DirEntry, WalkDir};
@@ -363,7 +368,11 @@ pub fn execute_test_suite(
 
                 // do the deed
                 let (e, exec_result) = if trace {
-                    let mut evm: Evm<Box<dyn Any>, TracerEip3155, &mut revm::db::State<revm::db::EmptyDBTyped<Infallible>>> = evm
+                    let mut evm: Evm<
+                        Box<dyn Any>,
+                        TracerEip3155,
+                        &mut revm::db::State<revm::db::EmptyDBTyped<Infallible>>,
+                    > = evm
                         .modify()
                         .reset_handler_with_external_context(
                             TracerEip3155::new(Box::new(stderr())).without_summary(),

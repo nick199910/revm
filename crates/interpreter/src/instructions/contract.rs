@@ -484,9 +484,10 @@ pub fn create<const IS_CREATE2: bool, T, H: Host<T> + ?Sized, SPEC: Spec>(
     };
 
     let create_out_put = host.create(&mut create_input, _additional_data);
+
     interpreter.return_data_buffer = match create_out_put.instruction_result() {
         // Save data to return data buffer if the create reverted
-        return_revert!() => create_out_put.output().clone(),
+        return_revert!() => create_out_put.output().to_owned(),
         // Otherwise clear it
         _ => Bytes::new(),
     };
@@ -497,16 +498,14 @@ pub fn create<const IS_CREATE2: bool, T, H: Host<T> + ?Sized, SPEC: Spec>(
                 interpreter,
                 create_out_put.address.unwrap_or_default().into_word()
             );
-            // if crate::USE_GAS {
-            //     interpreter.gas.erase_cost(gas.remaining());
-            //     interpreter.gas.record_refund(gas.refunded());
-            // }
+            interpreter.gas.erase_cost(create_out_put.gas().remaining());
+            interpreter
+                .gas
+                .record_refund(create_out_put.gas().refunded());
         }
         return_revert!() => {
             push_b256!(interpreter, B256::ZERO);
-            // if crate::USE_GAS {
-            //     interpreter.gas.erase_cost(gas.remaining());
-            // }
+            interpreter.gas.erase_cost(create_out_put.gas().remaining());
         }
         InstructionResult::FatalExternalError => {
             interpreter.instruction_result = InstructionResult::FatalExternalError;
@@ -610,12 +609,17 @@ pub fn call<T, H: Host<T> + ?Sized, SPEC: Spec>(
     let reason = call_out_come.instruction_result().clone();
     match reason {
         return_ok!() => {
+            let remaining = call_out_come.gas().remaining();
+            let refunded = call_out_come.gas().refunded();
+            interpreter.gas.erase_cost(remaining);
+            interpreter.gas.record_refund(refunded);
             interpreter
                 .shared_memory
                 .set(out_offset, &interpreter.return_data_buffer[..target_len]);
             push!(interpreter, U256::from(1));
         }
         return_revert!() => {
+            interpreter.gas.erase_cost(call_out_come.gas().remaining());
             interpreter
                 .shared_memory
                 .set(out_offset, &interpreter.return_data_buffer[..target_len]);
@@ -631,7 +635,6 @@ pub fn call<T, H: Host<T> + ?Sized, SPEC: Spec>(
             push!(interpreter, U256::ZERO);
         }
     }
-
     // interpreter.instruction_result = reason;
 }
 
@@ -720,12 +723,17 @@ pub fn call_code<T, H: Host<T> + ?Sized, SPEC: Spec>(
     let reason = call_out_come.instruction_result().clone();
     match reason {
         return_ok!() => {
+            let remaining = call_out_come.gas().remaining();
+            let refunded = call_out_come.gas().refunded();
+            interpreter.gas.erase_cost(remaining);
+            interpreter.gas.record_refund(refunded);
             interpreter
                 .shared_memory
                 .set(out_offset, &interpreter.return_data_buffer[..target_len]);
             push!(interpreter, U256::from(1));
         }
         return_revert!() => {
+            interpreter.gas.erase_cost(call_out_come.gas().remaining());
             interpreter
                 .shared_memory
                 .set(out_offset, &interpreter.return_data_buffer[..target_len]);
@@ -741,8 +749,6 @@ pub fn call_code<T, H: Host<T> + ?Sized, SPEC: Spec>(
             push!(interpreter, U256::ZERO);
         }
     }
-
-    // interpreter.instruction_result = reason;
     // interpreter.instruction_result = InstructionResult::CallOrCreate;
 }
 
@@ -821,12 +827,17 @@ pub fn delegate_call<T, H: Host<T> + ?Sized, SPEC: Spec>(
     let reason = call_out_come.instruction_result().clone();
     match reason {
         return_ok!() => {
+            let remaining = call_out_come.gas().remaining();
+            let refunded = call_out_come.gas().refunded();
+            interpreter.gas.erase_cost(remaining);
+            interpreter.gas.record_refund(refunded);
             interpreter
                 .shared_memory
                 .set(out_offset, &interpreter.return_data_buffer[..target_len]);
             push!(interpreter, U256::from(1));
         }
         return_revert!() => {
+            interpreter.gas.erase_cost(call_out_come.gas().remaining());
             interpreter
                 .shared_memory
                 .set(out_offset, &interpreter.return_data_buffer[..target_len]);
@@ -842,8 +853,6 @@ pub fn delegate_call<T, H: Host<T> + ?Sized, SPEC: Spec>(
             push!(interpreter, U256::ZERO);
         }
     }
-
-    // interpreter.instruction_result = reason;
     // interpreter.instruction_result = InstructionResult::CallOrCreate;
 }
 
