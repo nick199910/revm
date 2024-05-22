@@ -538,7 +538,6 @@ pub fn call<T, H: Host<T> + ?Sized, SPEC: Spec>(
     let Some((input, return_memory_offset)) = get_memory_input_and_out_ranges(interpreter) else {
         return;
     };
-
     let Some(LoadAccountResult { is_cold, is_empty }) = host.load_account(to) else {
         interpreter.instruction_result = InstructionResult::FatalExternalError;
         return;
@@ -853,6 +852,7 @@ pub fn delegate_call<T, H: Host<T> + ?Sized, SPEC: Spec>(
             push!(interpreter, U256::ZERO);
         }
     }
+
     // interpreter.instruction_result = InstructionResult::CallOrCreate;
 }
 
@@ -931,12 +931,18 @@ pub fn static_call<T, H: Host<T> + ?Sized, SPEC: Spec>(
     let reason = call_out_come.instruction_result().clone();
     match reason {
         return_ok!() => {
+            let remaining = call_out_come.gas().remaining();
+            let refunded = call_out_come.gas().refunded();
+            interpreter.gas.erase_cost(remaining);
+            interpreter.gas.record_refund(refunded);
+
             interpreter
                 .shared_memory
                 .set(out_offset, &interpreter.return_data_buffer[..target_len]);
             push!(interpreter, U256::from(1));
         }
         return_revert!() => {
+            interpreter.gas.erase_cost(call_out_come.gas().remaining());
             interpreter
                 .shared_memory
                 .set(out_offset, &interpreter.return_data_buffer[..target_len]);
