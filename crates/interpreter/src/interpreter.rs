@@ -492,6 +492,33 @@ mod tests {
     }
 
     #[test]
+    fn test_create_lib() {
+        let code = "60bf610033600b8282823980515f1a607314602757634e487b7160e01b5f525f60045260245ffd5b305f52607381538281f3fe73000000000000000000000000000000000000000030146080604052600436106032575f3560e01c806382692679146036575b5f80fd5b8180156040575f80fd5b5060476049565b005b60408051328152336020820152308183015290517f09ea2dc3857f100933423417185dce16437f7a2acd4be8fe7ae20e5f4b3c1c179181900360600190a156fea26469706673582212207c9bd71b64df1fd44621b97ffe439b16fccf30ce2786d7a02ce6022591d7910b64736f6c63430008140033";
+        let code = Bytecode::new_raw(Bytes::from_str(code).unwrap());
+
+        let code_hash = hex::encode(keccak256(code.bytecode_bytes()));
+        let target = Address::from_str("5B38Da6a701c568545dCfcB03FcB875f56beddC4").unwrap();
+
+        let call = Contract::new(
+            Bytes::new(),
+            Arc::new(code),
+            Some(B256::from_str(&code_hash).unwrap()),
+            target,
+            Address::default(),
+            U256::ZERO,
+            target,
+        );
+        let mut interp = Interpreter::new(call, u64::MAX, false);
+
+        let mut host = crate::DummyHost::default();
+        let table: InstructionTable<DummyHost, u32> =
+            crate::opcode::make_instruction_table::<u32, DummyHost, ShanghaiSpec>();
+
+        let ret = interp.run_inspect::<u32, DummyHost, ShanghaiSpec>(&mut host, &table, &mut 3);
+        println!("ret is {:?}", interp.return_data_buffer);
+    }
+
+    #[test]
     fn test_run_inspect() {
         // contract A {
         //     uint256 x = 256;

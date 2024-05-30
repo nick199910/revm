@@ -163,7 +163,7 @@ impl Host<u32> for DummyHost {
                 output: Bytes::new(),
                 gas: Gas::new(1000000),
             },
-            memory_offset: (0..32),
+            memory_offset: (_output_info.0.._output_info.0 + _output_info.1),
         }
     }
 }
